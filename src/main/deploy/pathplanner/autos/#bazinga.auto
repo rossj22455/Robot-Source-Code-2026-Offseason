@@ -1,0 +1,152 @@
+{
+  "version": "2025.0",
+  "command": {
+    "type": "sequential",
+    "data": {
+      "commands": [
+        {
+          "type": "path",
+          "data": {
+            "pathName": "straighthell"
+          }
+        },
+        {
+          "type": "sequential",
+          "data": {
+            "commands": [
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "youspinme"
+                }
+              },
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "rightround"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "sequential",
+          "data": {
+            "commands": [
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "youspinme"
+                }
+              },
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "rightround"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "sequential",
+          "data": {
+            "commands": [
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "youspinme"
+                }
+              },
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "rightround"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "sequential",
+          "data": {
+            "commands": [
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "youspinme"
+                }
+              },
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "rightround"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "sequential",
+          "data": {
+            "commands": [
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "youspinme"
+                }
+              },
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "rightround"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "sequential",
+          "data": {
+            "commands": [
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "youspinme"
+                }
+              },
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "rightround"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "sequential",
+          "data": {
+            "commands": [
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "youspinme"
+                }
+              },
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "rightround"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "resetOdom": true,
+  "folder": null,
+  "choreoAuto": false
+}

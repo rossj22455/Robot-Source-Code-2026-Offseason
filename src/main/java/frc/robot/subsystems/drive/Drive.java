@@ -73,23 +73,27 @@ public class Drive extends SubsystemBase {
 
   // maple-sim drivetrain physics configuration (simulation only). Motor models match PP_CONFIG.
   // Bumpers from CAD: 36.5 in fore-aft (X) by 33.5 in across the intake side (Y, front).
-  public static final DriveTrainSimulationConfig mapleSimConfig =
-      DriveTrainSimulationConfig.Default()
-          .withRobotMass(Kilograms.of(ROBOT_MASS_KG))
-          .withBumperSize(Inches.of(36.5), Inches.of(33.5))
-          .withCustomModuleTranslations(getModuleTranslations())
-          .withGyro(COTS.ofPigeon2())
-          .withSwerveModule(
-              new SwerveModuleSimulationConfig(
-                  DCMotor.getKrakenX60Foc(1),
-                  DCMotor.getFalcon500(1),
-                  TunerConstants.FrontLeft.DriveMotorGearRatio,
-                  TunerConstants.FrontLeft.SteerMotorGearRatio,
-                  Volts.of(TunerConstants.FrontLeft.DriveFrictionVoltage),
-                  Volts.of(TunerConstants.FrontLeft.SteerFrictionVoltage),
-                  Meters.of(TunerConstants.FrontLeft.WheelRadius),
-                  KilogramSquareMeters.of(TunerConstants.FrontLeft.SteerInertia),
-                  WHEEL_COF));
+  // maple-sim drivetrain physics configuration (simulation only). Motor models match PP_CONFIG.
+  // Bumpers from CAD: 36.5 in fore-aft (X) by 33.5 in across the intake side (Y, front).
+  public static DriveTrainSimulationConfig getMapleSimConfig() {
+    return DriveTrainSimulationConfig.Default()
+        .withRobotMass(Kilograms.of(ROBOT_MASS_KG))
+        .withBumperSize(Inches.of(36.5), Inches.of(33.5))
+        .withCustomModuleTranslations(getModuleTranslations())
+        .withGyro(COTS.ofPigeon2())
+        .withSwerveModule(
+            new SwerveModuleSimulationConfig(
+                DCMotor.getKrakenX60Foc(1),
+                DCMotor.getFalcon500(1),
+                TunerConstants.FrontLeft.DriveMotorGearRatio,
+                TunerConstants.FrontLeft.SteerMotorGearRatio,
+                Volts.of(TunerConstants.FrontLeft.DriveFrictionVoltage),
+                Volts.of(TunerConstants.FrontLeft.SteerFrictionVoltage),
+                Meters.of(TunerConstants.FrontLeft.WheelRadius),
+                KilogramSquareMeters.of(TunerConstants.FrontLeft.SteerInertia),
+                WHEEL_COF));
+  }
+
   private static final RobotConfig PP_CONFIG =
       new RobotConfig(
           ROBOT_MASS_KG,

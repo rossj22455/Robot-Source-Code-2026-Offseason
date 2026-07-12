@@ -32,9 +32,9 @@ public class VisionConstants {
   }
 
   // Camera names — PLACEHOLDER: must exactly match the names configured in the PhotonVision web UI
-  public static String camera0Name = "camera_0"; //Right Side
-  public static String camera1Name = "camera_1"; //Left Side
-  public static String camera2Name = "camera_2"; //FWD facing Cam Shooter
+  public static String camera0Name = "camera_0"; // Right Side
+  public static String camera1Name = "camera_1"; // Left Side
+  public static String camera2Name = "camera_2"; // FWD facing Cam Shooter
 
   // Camera roles, indexed to match the IO array order in RobotContainer.
   // All three cameras contribute to pose estimation; GAMEPIECE role is unused for now (see

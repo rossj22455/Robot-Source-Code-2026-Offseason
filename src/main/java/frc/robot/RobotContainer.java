@@ -131,7 +131,9 @@ public class RobotContainer {
         // Spawn on the open field — (0,0) is the field corner and puts the chassis inside the
         // wall colliders (only useful when aligning component meshes to the grid origin)
         driveSimulation =
-            new SwerveDriveSimulation(Drive.mapleSimConfig, new Pose2d(3, 3, Rotation2d.kZero));
+            new SwerveDriveSimulation(
+                Drive.getMapleSimConfig(), new Pose2d(3, 3, Rotation2d.kZero));
+
         SimulatedArena.getInstance().addDriveTrainSimulation(driveSimulation);
 
         drive =
@@ -312,7 +314,8 @@ public class RobotContainer {
     // Switch to X pattern when X button is pressed
     controller.square().onTrue(Commands.runOnce(drive::stopWithX, drive));
 
-    controller.circle()
+    controller
+        .circle()
         .onTrue(
             Commands.runOnce(
                     () ->

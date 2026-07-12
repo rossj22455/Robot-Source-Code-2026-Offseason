@@ -1,21 +1,38 @@
 {
   "name": "OffSeason26",
-  "rotations": [{ "axis": "x", "degrees": 90},{ "axis": "z", "degrees": 270}],
+  "rotations": [
+    {
+      "axis": "x",
+      "degrees": 90
+    },
+    {
+      "axis": "z",
+      "degrees": 270
+    }
+  ],
   "position": [
-   -0.04,
-   -0.085,
-   0.045
+    -0.04,
+    -0.085,
+    0.045
   ],
   "cameras": [],
   "components": [
-   {
-    "zeroedRotations": [{ "axis": "x", "degrees": 90},{ "axis": "z", "degrees": 270}], 
-    "zeroedPosition": [
-      0.2,
-      -0.085,
-      -0.24
-
-     ] 
-   }
-  ] 
+    {
+      "zeroedRotations": [
+        {
+          "axis": "x",
+          "degrees": 90
+        },
+        {
+          "axis": "z",
+          "degrees": 270
+        }
+      ],
+      "zeroedPosition": [
+        0.2,
+        -0.085,
+        -0.24
+      ]
+    }
+  ]
 }
