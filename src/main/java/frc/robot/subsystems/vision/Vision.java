@@ -113,7 +113,8 @@ public class Vision extends SubsystemBase {
     return getHubCenter().minus(robotPoseSupplier.get().getTranslation()).getAngle();
   }
 
-  private Translation2d getHubCenter() {
+  /** Alliance-aware hub center (the shoot-on-the-move solver leads this point). */
+  public Translation2d getHubCenter() {
     return DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red
         ? redHubCenter
         : blueHubCenter;

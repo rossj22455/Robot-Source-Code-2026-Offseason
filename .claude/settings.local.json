@@ -17,7 +17,12 @@
       "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew compileJava --console=plain -q)",
       "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Tee-Object -FilePath \"$env:TEMP\\\\simtest_output.log\")",
       "Read(//c/Users/rossj/AppData/Local/Temp/claude/c--Robot-Source-Code-2026-Offseason/c10b7776-e0df-4c3e-97c9-635304ed527c/tasks/**)",
-      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew test --console=plain 2>&1 | Select-Object -Last 40)"
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew test --console=plain 2>&1 | Select-Object -Last 40)",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew test --console=plain 2>&1 | Select-String -Pattern \"PASSED|FAILED|BUILD|Test >\" | Select-Object -First 30)",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Tee-Object -FilePath \"$env:TEMP\\\\simtest2.log\")",
+      "Read(//c/Users/rossj/AppData/Local/Temp/claude/c--Robot-Source-Code-2026-Offseason/**)",
+      "Bash(grep -a \"SIMTEST\\\\|Exception\\\\|BUILD FAILED\\\\|SEQUENCE\" \"/c/Users/rossj/AppData/Local/Temp/claude/c--Robot-Source-Code-2026-Offseason/c10b7776-e0df-4c3e-97c9-635304ed527c/tasks/be5rguf21.output\" | head -20)",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew test --console=plain 2>&1 | Select-String -Pattern \"PASSED|FAILED|BUILD\" | Select-Object -First 15)"
     ]
   }
 }

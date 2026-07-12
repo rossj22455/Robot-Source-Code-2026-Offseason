@@ -364,6 +364,16 @@ public class Drive extends SubsystemBase {
     return kinematics.toChassisSpeeds(getModuleStates());
   }
 
+  /**
+   * Measured field-relative translational velocity (from module states, rotated by the estimated
+   * heading). Feeds the shoot-on-the-move lead compensation.
+   */
+  public Translation2d getFieldVelocity() {
+    ChassisSpeeds speeds = getChassisSpeeds();
+    return new Translation2d(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond)
+        .rotateBy(getRotation());
+  }
+
   /** Returns the position of each module in radians. */
   public double[] getWheelRadiusCharacterizationPositions() {
     double[] values = new double[4];

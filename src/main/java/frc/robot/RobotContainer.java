@@ -56,8 +56,10 @@ import frc.robot.subsystems.vision.VisionIO;
 import frc.robot.subsystems.vision.VisionIOPhotonVision;
 import frc.robot.subsystems.vision.VisionIOPhotonVisionSim;
 import frc.robot.util.RobotVisualizer;
+import frc.robot.util.ShotOnMoveSolver;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.Arena2026Rebuilt;
+import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /**
@@ -111,7 +113,7 @@ public class RobotContainer {
             new Shooter(
                 new ShooterDrumIOTalonFX(),
                 new ShooterKickerIOSparkMax(),
-                vision::getHubDistanceMeters,
+                this::getHubShotDistance,
                 vision::hasHubPoseConfidence,
                 drive::getRotation,
                 this::getTargetHeading,
@@ -174,7 +176,7 @@ public class RobotContainer {
             new Shooter(
                 new ShooterDrumIOTalonFXSim(),
                 new ShooterKickerIOSparkMaxSim(),
-                vision::getHubDistanceMeters,
+                this::getHubShotDistance,
                 vision::hasHubPoseConfidence,
                 drive::getRotation,
                 this::getTargetHeading,
@@ -224,7 +226,7 @@ public class RobotContainer {
             new Shooter(
                 new ShooterDrumIO() {},
                 new ShooterKickerIO() {},
-                vision::getHubDistanceMeters,
+                this::getHubShotDistance,
                 vision::hasHubPoseConfidence,
                 drive::getRotation,
                 this::getTargetHeading,
@@ -346,13 +348,20 @@ public class RobotContainer {
    * only leave when genuinely on target. The intake sweeps in and shutters to herd balls for the
    * duration, returning to its extended posture afterward.
    */
+  // While aiming+shooting, cap translation to this fraction of max speed (~1.1 m/s of the
+  // 4.58 m/s max). The 64 deg lob flies ~1 s, so lead error scales with speed x time-of-flight
+  // error — the shoot-on-the-move compensation is sim-validated up to ~1.5 m/s, and this keeps
+  // the driver inside that envelope while still able to reposition.
+  private static final double SHOOT_ON_MOVE_SPEED_SCALAR = 0.25;
+
   private Command aimAndShootCommand() {
     return Commands.parallel(
             DriveCommands.joystickDriveAtAngle(
                 drive,
                 () -> -controller.getLeftY(),
                 () -> -controller.getLeftX(),
-                this::getTargetHeading),
+                this::getTargetHeading,
+                SHOOT_ON_MOVE_SPEED_SCALAR),
             shootCommand())
         .withName("AimAndShoot");
   }
@@ -360,13 +369,36 @@ public class RobotContainer {
   /**
    * Field-relative bearing the shooter should face: the alliance corner while inside the neutral
    * zone (hub shots are illegal there — fuel funnels back to friendly territory), otherwise the
-   * hub. Pose-based, so it keeps working on pure odometry when vision drops out.
+   * velocity-compensated hub bearing (shoot-on-the-move: aim leads the hub by robot velocity x
+   * time-of-flight; degenerates to the plain hub bearing when stationary). Pose-based, so it keeps
+   * working on pure odometry when vision drops out.
    */
   private Rotation2d getTargetHeading() {
     var robotPosition = drive.getPose().getTranslation();
     return FieldConstants.getFunnelTarget(robotPosition)
         .map(target -> target.minus(robotPosition).getAngle())
-        .orElseGet(vision::getHubHeading);
+        .orElseGet(() -> getHubShotSolution().heading());
+  }
+
+  /**
+   * Shoot-on-the-move solution for the hub: the virtual target the robot should aim at and range
+   * against, leading the real hub by the robot's velocity over the ball's flight time. Recomputed
+   * on demand from the latest pose estimate (cheap — a 3-iteration closed-form solve).
+   */
+  private ShotOnMoveSolver.Solution getHubShotSolution() {
+    var solution =
+        ShotOnMoveSolver.solve(
+            drive.getPose().getTranslation(), drive.getFieldVelocity(), vision.getHubCenter());
+    Logger.recordOutput(
+        "Shooter/ShotOnMove/VirtualTarget", new Pose2d(solution.virtualTarget(), Rotation2d.kZero));
+    Logger.recordOutput("Shooter/ShotOnMove/LeadMeters", solution.leadMeters());
+    Logger.recordOutput("Shooter/ShotOnMove/TimeOfFlightSecs", solution.timeOfFlightSecs());
+    return solution;
+  }
+
+  /** Range for the drum RPM map: distance to the virtual (velocity-compensated) hub target. */
+  private double getHubShotDistance() {
+    return getHubShotSolution().distanceMeters();
   }
 
   /** True while the robot is inside the neutral zone (shooter lobs toward the alliance corner). */

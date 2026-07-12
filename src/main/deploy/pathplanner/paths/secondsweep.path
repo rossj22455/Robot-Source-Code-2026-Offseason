@@ -3,13 +3,13 @@
   "waypoints": [
     {
       "anchor": {
-        "x": 2.9651497860199716,
+        "x": 3.210984308131241,
         "y": 5.6070470756062765
       },
       "prevControl": null,
       "nextControl": {
-        "x": 2.9482048192771084,
-        "y": 6.570228915662651
+        "x": 2.9522111269614832,
+        "y": 6.564507845934379
       },
       "isLocked": false,
       "linkedName": "Lfire"
@@ -20,12 +20,12 @@
         "y": 7.51001204819277
       },
       "prevControl": {
-        "x": 2.564035201467974,
-        "y": 7.543201304170782
+        "x": 2.809885877318117,
+        "y": 7.509029957203994
       },
       "nextControl": {
-        "x": 5.756626506024096,
-        "y": 7.488156626506025
+        "x": 5.713601055288022,
+        "y": 7.510728288490661
       },
       "isLocked": false,
       "linkedName": null
@@ -36,12 +36,12 @@
         "y": 6.581156626506024
       },
       "prevControl": {
-        "x": 6.456429465523028,
-        "y": 7.544451029919228
+        "x": 6.1480599144079875,
+        "y": 7.159686162624822
       },
       "nextControl": {
-        "x": 6.314731421842304,
-        "y": 6.1626075043913655
+        "x": 6.500963522294598,
+        "y": 6.1855724626703505
       },
       "isLocked": false,
       "linkedName": null
@@ -80,11 +80,11 @@
     },
     {
       "anchor": {
-        "x": 2.9651497860199716,
+        "x": 3.210984308131241,
         "y": 5.6070470756062765
       },
       "prevControl": {
-        "x": 4.557431323547738,
+        "x": 4.803265845659007,
         "y": 5.755902252851579
       },
       "nextControl": null,
@@ -94,8 +94,12 @@
   ],
   "rotationTargets": [
     {
-      "waypointRelativePos": 1.034024896265544,
-      "rotationDegrees": 0.0
+      "waypointRelativePos": 0.8208955223880543,
+      "rotationDegrees": 180.0
+    },
+    {
+      "waypointRelativePos": 1.1300639658848577,
+      "rotationDegrees": 180.0
     },
     {
       "waypointRelativePos": 2.0240663900414932,
@@ -127,13 +131,13 @@
   },
   "goalEndState": {
     "velocity": 0,
-    "rotation": -44.098
+    "rotation": -46.53630012888378
   },
   "reversed": false,
   "folder": "Bump",
   "idealStartingState": {
     "velocity": 0,
-    "rotation": -44.098
+    "rotation": -46.53630012888378
   },
   "useDefaultConstraints": true
 }

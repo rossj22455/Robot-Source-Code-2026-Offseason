@@ -106,6 +106,21 @@ public class DriveCommands {
       DoubleSupplier xSupplier,
       DoubleSupplier ySupplier,
       Supplier<Rotation2d> rotationSupplier) {
+    return joystickDriveAtAngle(drive, xSupplier, ySupplier, rotationSupplier, 1.0);
+  }
+
+  /**
+   * {@link #joystickDriveAtAngle} with the translation speed capped to {@code speedScalar} of the
+   * drivetrain maximum (applied AFTER the input squaring, so full stick = scalar x max speed). Used
+   * by aim-and-shoot to hold the chassis inside the shoot-on-the-move accuracy envelope while still
+   * letting the driver reposition.
+   */
+  public static Command joystickDriveAtAngle(
+      Drive drive,
+      DoubleSupplier xSupplier,
+      DoubleSupplier ySupplier,
+      Supplier<Rotation2d> rotationSupplier,
+      double speedScalar) {
 
     // Create PID controller
     ProfiledPIDController angleController =
@@ -131,8 +146,8 @@ public class DriveCommands {
               // Convert to field relative speeds & send command
               ChassisSpeeds speeds =
                   new ChassisSpeeds(
-                      linearVelocity.getX() * drive.getMaxLinearSpeedMetersPerSec(),
-                      linearVelocity.getY() * drive.getMaxLinearSpeedMetersPerSec(),
+                      linearVelocity.getX() * drive.getMaxLinearSpeedMetersPerSec() * speedScalar,
+                      linearVelocity.getY() * drive.getMaxLinearSpeedMetersPerSec() * speedScalar,
                       omega);
               boolean isFlipped =
                   DriverStation.getAlliance().isPresent()
