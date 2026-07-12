@@ -7,6 +7,7 @@
 
 package frc.robot.subsystems.indexer;
 
+import static edu.wpi.first.units.Units.Amps;
 import static frc.robot.subsystems.indexer.IndexerConstants.*;
 
 import com.ctre.phoenix6.sim.TalonFXSimState;
@@ -31,6 +32,11 @@ public class IndexerIOTalonFXSim extends IndexerIOTalonFX {
           LinearSystemId.createDCMotorSystem(GEARBOX, SIM_MOI_KG_M2, INDEXER_GEAR_RATIO), GEARBOX);
 
   private final TalonFXSimState motorSim = motor.getSimState();
+
+  public IndexerIOTalonFXSim() {
+    // Draw from the shared simulated battery so the indexer contributes to bus sag
+    SimulatedBattery.addElectricalAppliances(() -> Amps.of(motorSim.getSupplyCurrent()));
+  }
 
   @Override
   public void updateInputs(IndexerIOInputs inputs) {

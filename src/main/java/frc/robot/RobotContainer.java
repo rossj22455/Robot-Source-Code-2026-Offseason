@@ -24,8 +24,8 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.commands.TiltRecoveryCommands;
 import frc.robot.generated.TunerConstants;
-import frc.robot.simulation.BumpSimulation;
 import frc.robot.simulation.SimulationManager;
+import frc.robot.simulation.TerrainAwareSwerveDriveSimulation;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.GyroIO;
 import frc.robot.subsystems.drive.GyroIOPigeon2;
@@ -57,7 +57,6 @@ import frc.robot.subsystems.vision.VisionIOPhotonVision;
 import frc.robot.subsystems.vision.VisionIOPhotonVisionSim;
 import frc.robot.util.RobotVisualizer;
 import org.ironmaple.simulation.SimulatedArena;
-import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.Arena2026Rebuilt;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
@@ -76,7 +75,7 @@ public class RobotContainer {
   private final Indexer indexer;
 
   // maple-sim field/game-piece simulation (SIM mode only, null otherwise)
-  private SwerveDriveSimulation driveSimulation = null;
+  private TerrainAwareSwerveDriveSimulation driveSimulation = null;
   private SimulationManager simulationManager = null;
 
   // 3D component pose publisher for AdvantageScope (all modes, including replay)
@@ -124,14 +123,14 @@ public class RobotContainer {
         // Sim robot: maple-sim physics arena drives the real device code through Phoenix/REV
         // sim states, so onboard control loops and device configs are exercised on desktop.
         // Ramp COLLIDERS are disabled so the chassis can drive onto the ramp zones; the
-        // BumpSimulation terrain model tilts the gyro there instead (tilt logic testable).
+        // terrain-aware drive simulation models the ramps as real 3D chassis dynamics there
+        // (slope forces, per-wheel loads, gyro pitch/roll — tilt logic testable).
         SimulatedArena.overrideInstance(new Arena2026Rebuilt(false));
-        BumpSimulation bumpSimulation = new BumpSimulation();
 
         // Spawn on the open field — (0,0) is the field corner and puts the chassis inside the
         // wall colliders (only useful when aligning component meshes to the grid origin)
         driveSimulation =
-            new SwerveDriveSimulation(
+            new TerrainAwareSwerveDriveSimulation(
                 Drive.getMapleSimConfig(), new Pose2d(3, 3, Rotation2d.kZero));
 
         SimulatedArena.getInstance().addDriveTrainSimulation(driveSimulation);
@@ -140,8 +139,8 @@ public class RobotContainer {
             new Drive(
                 new GyroIOSim(
                     driveSimulation.getGyroSimulation(),
-                    bumpSimulation::getPitch,
-                    bumpSimulation::getRoll),
+                    driveSimulation::getPitch,
+                    driveSimulation::getRoll),
                 new ModuleIOTalonFXSim(TunerConstants.FrontLeft, driveSimulation.getModules()[0]),
                 new ModuleIOTalonFXSim(TunerConstants.FrontRight, driveSimulation.getModules()[1]),
                 new ModuleIOTalonFXSim(TunerConstants.BackLeft, driveSimulation.getModules()[2]),
@@ -192,8 +191,7 @@ public class RobotContainer {
                 shooter::getDrumVelocityRpm,
                 shooter::getKickerAppliedVolts,
                 indexer::getAppliedVolts,
-                shooter::simNotifyBallFired,
-                bumpSimulation);
+                shooter::simNotifyBallFired);
 
         // Automated self-test: with SIM_TEST=1 the robot enables itself (see Robot) and runs a
         // scripted homing -> intake -> shoot sequence, printing [SIMTEST] markers for CI/log

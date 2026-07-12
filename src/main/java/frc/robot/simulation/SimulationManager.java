@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.IntakeSimulation;
 import org.ironmaple.simulation.SimulatedArena;
-import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
+import org.ironmaple.simulation.motorsims.SimulatedBattery;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.Arena2026Rebuilt;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.RebuiltFuelOnField;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.RebuiltFuelOnFly;
@@ -75,14 +75,13 @@ public class SimulationManager {
   private static final boolean FULL_FIELD_FUEL = false;
   private static final double SPAWN_DISTANCE_METERS = 1.0;
 
-  private final SwerveDriveSimulation driveSimulation;
+  private final TerrainAwareSwerveDriveSimulation driveSimulation;
   private final DoubleSupplier intakePositionMeters;
   private final DoubleSupplier rollerAppliedVolts;
   private final DoubleSupplier drumVelocityRpm;
   private final DoubleSupplier kickerAppliedVolts;
   private final DoubleSupplier indexerAppliedVolts;
   private final Runnable ballFiredCallback;
-  private final BumpSimulation bumpSimulation;
   private final IntakeSimulation intakeSimulation;
 
   private final List<Double> ballProgress = new ArrayList<>();
@@ -101,14 +100,13 @@ public class SimulationManager {
   private int shotsFired = 0;
 
   public SimulationManager(
-      SwerveDriveSimulation driveSimulation,
+      TerrainAwareSwerveDriveSimulation driveSimulation,
       DoubleSupplier intakePositionMeters,
       DoubleSupplier rollerAppliedVolts,
       DoubleSupplier drumVelocityRpm,
       DoubleSupplier kickerAppliedVolts,
       DoubleSupplier indexerAppliedVolts,
-      Runnable ballFiredCallback,
-      BumpSimulation bumpSimulation) {
+      Runnable ballFiredCallback) {
     this.driveSimulation = driveSimulation;
     this.intakePositionMeters = intakePositionMeters;
     this.rollerAppliedVolts = rollerAppliedVolts;
@@ -116,7 +114,6 @@ public class SimulationManager {
     this.kickerAppliedVolts = kickerAppliedVolts;
     this.indexerAppliedVolts = indexerAppliedVolts;
     this.ballFiredCallback = ballFiredCallback;
-    this.bumpSimulation = bumpSimulation;
 
     this.intakeSimulation =
         IntakeSimulation.OverTheBumperIntake(
@@ -137,9 +134,6 @@ public class SimulationManager {
 
   public void update() {
     handleFieldTestControls();
-
-    // Synthetic ramp terrain -> gyro pitch/roll (tilt logic testable in sim)
-    bumpSimulation.update(driveSimulation.getSimulatedDriveTrainPose());
 
     boolean intakeActive =
         rollerAppliedVolts.getAsDouble() > ROLLER_ACTIVE_VOLTS
@@ -205,19 +199,36 @@ public class SimulationManager {
     Logger.recordOutput(
         "FieldSimulation/SimulatedRobotPose", driveSimulation.getSimulatedDriveTrainPose());
     // Ground truth as a full 3D pose riding the ramp terrain: bind the AdvantageScope 3D robot
-    // to this key to see it climb and tilt over the bumps. (Rotation3d pitch is nose-DOWN
-    // positive, hence the negation; flip signs if the tilt renders backward.)
+    // to this key to see it climb, bounce, and tilt over the bumps. (Rotation3d pitch is
+    // nose-DOWN positive, hence the negation; flip signs if the tilt renders backward.)
     Pose2d groundTruth = driveSimulation.getSimulatedDriveTrainPose();
     Logger.recordOutput(
         "FieldSimulation/SimulatedRobotPose3d",
         new Pose3d(
             groundTruth.getX(),
             groundTruth.getY(),
-            bumpSimulation.getHeightMeters(),
+            driveSimulation.getHeaveMeters(),
             new Rotation3d(
-                bumpSimulation.getRoll().getRadians(),
-                -bumpSimulation.getPitch().getRadians(),
+                driveSimulation.getRoll().getRadians(),
+                -driveSimulation.getPitch().getRadians(),
                 groundTruth.getRotation().getRadians())));
+
+    // Terrain dynamics ground truth (the sim gyro sees pitch/roll through GyroIOSim)
+    Logger.recordOutput(
+        "FieldSimulation/Terrain/PitchDeg", driveSimulation.getPitch().getDegrees());
+    Logger.recordOutput("FieldSimulation/Terrain/RollDeg", driveSimulation.getRoll().getDegrees());
+    Logger.recordOutput("FieldSimulation/Terrain/HeaveMeters", driveSimulation.getHeaveMeters());
+    Logger.recordOutput(
+        "FieldSimulation/Terrain/WheelNormalForcesN",
+        driveSimulation.getWheelNormalForcesNewtons());
+    Logger.recordOutput("FieldSimulation/Terrain/OnRamp", driveSimulation.isOnRamp());
+
+    // Simulated battery (all drive + mechanism motors registered as appliances)
+    Logger.recordOutput(
+        "FieldSimulation/Battery/VoltageVolts", SimulatedBattery.getBatteryVoltage().in(Volts));
+    Logger.recordOutput(
+        "FieldSimulation/Battery/TotalCurrentAmps",
+        SimulatedBattery.getTotalCurrentDrawn().in(Amps));
     Logger.recordOutput("FieldSimulation/BallsInRobot", getBallPosesInField());
     Logger.recordOutput("FieldSimulation/PiecesInRobot", ballProgress.size());
     Logger.recordOutput("FieldSimulation/ShotsFired", shotsFired);

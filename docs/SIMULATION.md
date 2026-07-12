@@ -28,14 +28,15 @@ scripted sequence (homing → intake deploy while driving → full firing chain)
 
 ```
 [SIMTEST] homing: homed=true pos=0.0000 m
-[SIMTEST] deployed: pos=0.2791 m atGoal=true
-[SIMTEST] shoot: ready=true drumRpm=1670 distValid=true dist=1.48 m shots=3
-[SIMTEST] SEQUENCE COMPLETE: shots=3 homed=true
+[SIMTEST] deployed: pos=0.2918 m atGoal=true
+[SIMTEST] shoot: ready=true drumRpm=1814 distValid=true dist=2.63 m shots=2
+[SIMTEST] SEQUENCE COMPLETE: shots=2 homed=true retractedPos=0.0121 m
 ```
 
-(The test shoots from ~1.5 m, inside the map's 1.7 m minimum, so the RPM clamps to the 1666
-entry — expected. The deployed position sits ~8 mm below the goal from gravity sag on the 23°
-rack with the real 4.93 kg carriage; still within the at-goal tolerance.)
+(The test preloads exactly 2 Fuel, so `shots=2` means everything fired. Exact RPM/distance vary
+slightly run to run — the robot aims itself before shooting. The deployed position can sit
+slightly below the goal from gravity sag on the 23° rack with the real 4.93 kg carriage; still
+within the at-goal tolerance.)
 
 Run this after any change to the mechanism IO, constants, or interlock logic — it exercises the
 real device configs, the onboard drum velocity PID, the homing state machine, the vision
@@ -49,10 +50,23 @@ into the device's vendor sim state (`TalonFXSimState` / `SparkMaxSim`), so the a
 configs, onboard closed-loop control, follower setup, and current limits are exercised on the
 desktop. Config mistakes surface in sim instead of on the robot.
 
-- **Swerve + field physics**: maple-sim `SwerveDriveSimulation` in `Arena2026Rebuilt`
-  (rigid-body chassis, field obstacles, Fuel game pieces, hub scoring). Wired in
-  `RobotContainer`'s SIM branch; module/gyro bridges in `ModuleIOTalonFXSim`, `GyroIOSim`,
-  and `util/PhoenixUtil`.
+- **Swerve + field physics**: `simulation/TerrainAwareSwerveDriveSimulation` (extends maple-sim's
+  `SwerveDriveSimulation`) in `Arena2026Rebuilt` (rigid-body chassis, field obstacles, Fuel game
+  pieces, hub scoring). Wired in `RobotContainer`'s SIM branch; module/gyro bridges in
+  `ModuleIOTalonFXSim`, `GyroIOSim`, and `util/PhoenixUtil`.
+- **3D bump dynamics**: maple-sim is 2D, so `TerrainAwareSwerveDriveSimulation` adds three
+  out-of-plane degrees of freedom (heave/pitch/roll) integrated at the physics sub-tick rate:
+  each wheel is a stiff spring-damper contact sampled against the `simulation/FieldTerrain`
+  height field (the hub ramps). Coupling is two-way — wheel contacts transmit real down-slope
+  forces into the planar body (climbing a ramp slows the robot; straddling an edge yaws it), and
+  the live per-wheel normal forces feed each module's grip limit (weight transfer under
+  accel/braking, unloaded wheels lose traction). The sim gyro reads the resulting pitch/roll, so
+  tilt detection/recovery sees realistic dynamic transients, not a static lookup.
+- **Battery sag**: all drive motors (automatic via maple-sim) and every mechanism sim (drum,
+  kicker, indexer, intake linear + rollers — registered in their sim IO constructors) draw from
+  maple-sim's shared `SimulatedBattery`. The loaded bus voltage feeds back into every device sim
+  and `RobotController.getBatteryVoltage()`, so a drum spin-up during a hard launch measurably
+  slows the drivetrain, exactly like a real match.
 - **Mechanisms**: `ShooterDrumIOTalonFXSim` (FlywheelSim → both Falcons, follower opposed),
   `IndexerIOTalonFXSim`, `ShooterKickerIOSparkMaxSim`, `IntakeLinearIOSparkMaxSim` (gravity on
   the 23° rack, hardstops with realistic stall current so **homing completes in sim**),
@@ -70,6 +84,9 @@ desktop. Config mistakes surface in sim instead of on the robot.
 | `/RealOutputs/Components` | `Pose3d[4]` | Robot | `[0]` intake carriage, `[1]` shooter drum, `[2]` indexer roller, `[3]` kicker roller |
 | `/RealOutputs/FieldSimulation/GamePieces` | `Pose3d[]` | Field | All Fuel on the field / in flight |
 | `/RealOutputs/FieldSimulation/SimulatedRobotPose` | `Pose2d` | Field | Ground truth (compare against `/RealOutputs/Odometry/Robot`) |
+| `/RealOutputs/FieldSimulation/SimulatedRobotPose3d` | `Pose3d` | Field | Ground truth with terrain heave/pitch/roll — bind the 3D robot to this to see it climb the ramps |
+| `/RealOutputs/FieldSimulation/Terrain/*` | mixed | — | `PitchDeg`/`RollDeg`/`HeaveMeters`, `WheelNormalForcesN[4]` (0 = wheel airborne), `OnRamp` |
+| `/RealOutputs/FieldSimulation/Battery/*` | `double` | — | `VoltageVolts` (loaded bus), `TotalCurrentAmps` (all registered appliances) |
 | `/RealOutputs/FieldSimulation/ShotTrajectory` | `Pose3d[]` | Field | Predicted arc of the most recent shot |
 | `/RealOutputs/FieldSimulation/BallsInRobot` | `Pose3d[]` | Field | Fuel riding the intake→kicker path inside the robot (render as game pieces) |
 | `/RealOutputs/FieldSimulation/PiecesInRobot` | `int` | — | Fuel currently held |
@@ -126,11 +143,16 @@ simulation, which is how this was caught). Keep any reassignment within 0–62.
 
 ## Known sim limitations
 
-- Gyro pitch/roll come from a synthetic ramp terrain model (`simulation/BumpSimulation`): the
-  arena's ramp colliders are disabled and the hub ramps tilt the gyro instead, so tilt detection
-  and tilt-recovery ARE testable. Default ramp rise (~5.3°) stays under the 10° tilt threshold —
-  raise `RAMP_HEIGHT_METERS` above ~0.38 m to force tilt-recovery events. The chassis physics do
-  not tilt (maple-sim is 2D); only the gyro sees the slope.
+- Bump simulation is terrain *dynamics*, not full 3D collision: the arena's ramp colliders are
+  disabled and `TerrainAwareSwerveDriveSimulation` models the ramps as a height field with real
+  chassis physics (slope forces, per-wheel loads, dynamic pitch/roll on the gyro). What it cannot
+  do: bumpers hitting the ramp side walls (driving across a lateral ramp edge steps the terrain
+  instead of colliding), game pieces interacting with the slopes (Fuel stays in the 2D plane),
+  or rolling the robot over. Default ramp rise (~5.3°) stays under the 10° tilt threshold —
+  raise `FieldTerrain.RAMP_HEIGHT_METERS` above ~0.38 m to force tilt-recovery events.
+- Contact stiffness/damping, CG height, and pitch/roll MOI in
+  `TerrainAwareSwerveDriveSimulation` are physically-plausible PLACEHOLDER values — replace with
+  CAD/measured numbers when available.
 - REV hardware following isn't simulated; the roller follower is mirrored manually.
 - Drive gains in sim are maple-sim's regulated values, not the robot's tuned gains
   (`PhoenixUtil.regulateModuleConstantsForSimulation`), so drive "feel" differs slightly.

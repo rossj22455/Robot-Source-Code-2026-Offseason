@@ -7,6 +7,7 @@
 
 package frc.robot.subsystems.shooter;
 
+import static edu.wpi.first.units.Units.Amps;
 import static frc.robot.subsystems.shooter.ShooterConstants.*;
 
 import com.ctre.phoenix6.sim.TalonFXSimState;
@@ -31,6 +32,13 @@ public class ShooterDrumIOTalonFXSim extends ShooterDrumIOTalonFX {
 
   private final TalonFXSimState masterSim = master.getSimState();
   private final TalonFXSimState followerSim = follower.getSimState();
+
+  public ShooterDrumIOTalonFXSim() {
+    // Both Falcons draw from the shared simulated battery, so drum spin-up sags the bus for
+    // every other mechanism (and the drive), just like real hardware
+    SimulatedBattery.addElectricalAppliances(() -> Amps.of(masterSim.getSupplyCurrent()));
+    SimulatedBattery.addElectricalAppliances(() -> Amps.of(followerSim.getSupplyCurrent()));
+  }
 
   @Override
   public void updateInputs(ShooterDrumIOInputs inputs) {

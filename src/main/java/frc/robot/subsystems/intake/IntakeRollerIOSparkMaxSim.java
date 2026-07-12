@@ -7,11 +7,14 @@
 
 package frc.robot.subsystems.intake;
 
+import static edu.wpi.first.units.Units.Amps;
+
 import com.revrobotics.sim.SparkMaxSim;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
+import org.ironmaple.simulation.motorsims.SimulatedBattery;
 
 /**
  * Hardware-in-the-loop sim for the roller bar: the REAL {@link IntakeRollerIOSparkMax} runs
@@ -30,6 +33,14 @@ public class IntakeRollerIOSparkMaxSim extends IntakeRollerIOSparkMax {
   private final DCMotorSim physics =
       new DCMotorSim(
           LinearSystemId.createDCMotorSystem(MOTOR_MODEL, SIM_MOI_KG_M2, 1.0), MOTOR_MODEL);
+
+  public IntakeRollerIOSparkMaxSim() {
+    // Supply current ~= stator current x duty cycle; both rollers contribute to battery sag
+    SimulatedBattery.addElectricalAppliances(
+        () -> Amps.of(Math.abs(masterSim.getMotorCurrent() * masterSim.getAppliedOutput())));
+    SimulatedBattery.addElectricalAppliances(
+        () -> Amps.of(Math.abs(followerSim.getMotorCurrent() * followerSim.getAppliedOutput())));
+  }
 
   @Override
   public void updateInputs(IntakeRollerIOInputs inputs) {

@@ -11,7 +11,13 @@
       "WebSearch",
       "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Out-File -Encoding utf8 \"$env:TEMP\\\\sim_test1.log\")",
       "WebFetch(domain:www.chiefdelphi.com)",
-      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Out-File -Encoding utf8 \"$env:TEMP\\\\sim_test2.log\")"
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Out-File -Encoding utf8 \"$env:TEMP\\\\sim_test2.log\")",
+      "Bash(find 'C:\\\\Users\\\\rossj/.gradle/caches/modules-2/files-2.1' -iname *maple* -name *.jar)",
+      "PowerShell(Remove-Item \"c:\\\\Robot-Source-Code-2026-Offseason\\\\src\\\\main\\\\java\\\\frc\\\\robot\\\\simulation\\\\BumpSimulation.java\" -Confirm:$false)",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew compileJava --console=plain -q)",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Tee-Object -FilePath \"$env:TEMP\\\\simtest_output.log\")",
+      "Read(//c/Users/rossj/AppData/Local/Temp/claude/c--Robot-Source-Code-2026-Offseason/c10b7776-e0df-4c3e-97c9-635304ed527c/tasks/**)",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew test --console=plain 2>&1 | Select-Object -Last 40)"
     ]
   }
 }

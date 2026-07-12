@@ -7,6 +7,7 @@
 
 package frc.robot.subsystems.intake;
 
+import static edu.wpi.first.units.Units.Amps;
 import static frc.robot.subsystems.intake.IntakeConstants.*;
 
 import com.revrobotics.sim.SparkMaxSim;
@@ -15,6 +16,7 @@ import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
+import org.ironmaple.simulation.motorsims.SimulatedBattery;
 
 /**
  * Hardware-in-the-loop sim for the linear rack: the REAL {@link IntakeLinearIOSparkMax} runs
@@ -51,6 +53,11 @@ public class IntakeLinearIOSparkMaxSim extends IntakeLinearIOSparkMax {
   public IntakeLinearIOSparkMaxSim() {
     // Start partially extended; the SparkMax encoder still reads 0 (unknown offset, like boot)
     physics.setState(SIM_BOOT_OFFSET_METERS / METERS_PER_OUTPUT_ROTATION * 2.0 * Math.PI, 0.0);
+
+    // Supply current ~= stator current x duty cycle; stalls against the hardstop show up as
+    // real battery load
+    SimulatedBattery.addElectricalAppliances(
+        () -> Amps.of(Math.abs(sparkSim.getMotorCurrent() * sparkSim.getAppliedOutput())));
   }
 
   @Override

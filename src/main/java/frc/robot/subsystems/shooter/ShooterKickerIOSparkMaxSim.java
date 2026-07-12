@@ -7,6 +7,7 @@
 
 package frc.robot.subsystems.shooter;
 
+import static edu.wpi.first.units.Units.Amps;
 import static frc.robot.subsystems.shooter.ShooterConstants.*;
 
 import com.revrobotics.sim.SparkMaxSim;
@@ -14,6 +15,7 @@ import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
+import org.ironmaple.simulation.motorsims.SimulatedBattery;
 
 /**
  * Hardware-in-the-loop sim for the kicker: the REAL {@link ShooterKickerIOSparkMax} runs unchanged
@@ -30,6 +32,12 @@ public class ShooterKickerIOSparkMaxSim extends ShooterKickerIOSparkMax {
   private final DCMotorSim physics =
       new DCMotorSim(
           LinearSystemId.createDCMotorSystem(GEARBOX, SIM_MOI_KG_M2, KICKER_GEAR_RATIO), GEARBOX);
+
+  public ShooterKickerIOSparkMaxSim() {
+    // Supply current ~= stator current x duty cycle; contributes to simulated battery sag
+    SimulatedBattery.addElectricalAppliances(
+        () -> Amps.of(Math.abs(sparkSim.getMotorCurrent() * sparkSim.getAppliedOutput())));
+  }
 
   @Override
   public void updateInputs(ShooterKickerIOInputs inputs) {
