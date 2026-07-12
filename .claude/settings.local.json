@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew compileJava --console=plain -q; if \\($?\\) { \"COMPILE OK\" } else { \"COMPILE FAILED\" })",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew compileJava --console=plain -q; if \\($?\\) { \"COMPILE OK \\(Phase 3\\)\" } else { \"COMPILE FAILED\" })",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew compileJava --console=plain -q; if \\($?\\) { \"COMPILE OK \\(Phase 4\\)\" } else { \"COMPILE FAILED\" })",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew compileJava spotlessApply --console=plain -q; if \\($?\\) { \"COMPILE + SPOTLESS OK \\(Phase 5\\)\" } else { \"FAILED\" })",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew simulateJava --console=plain 2>&1 | Out-File -Encoding utf8 \"$env:TEMP\\\\sim_smoke.log\")",
+      "Read(//c/Users/rossj/AppData/Local/Temp/**)",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew simulateJava --console=plain 2>&1 | Out-File -Encoding utf8 \"$env:TEMP\\\\sim_smoke2.log\")",
+      "WebSearch",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Out-File -Encoding utf8 \"$env:TEMP\\\\sim_test1.log\")",
+      "WebFetch(domain:www.chiefdelphi.com)",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Out-File -Encoding utf8 \"$env:TEMP\\\\sim_test2.log\")"
+    ]
+  }
+}

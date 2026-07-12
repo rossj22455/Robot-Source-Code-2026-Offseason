@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew compileJava --console=plain -q; if \\($?\\) { \"COMPILE OK\" } else { \"COMPILE FAILED\" })",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Out-File -Encoding utf8 \"$env:TEMP\\\\sim_test3.log\")",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew compileJava spotlessApply --console=plain -q; if \\($?\\) { \"FINAL COMPILE + SPOTLESS OK\" } else { \"FAILED\" })",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Out-File -Encoding utf8 \"$env:TEMP\\\\sim_final.log\")",
+      "Bash(JAVA_HOME=\"C:/Users/Public/wpilib/2026/jdk\" ./gradlew compileJava -q)",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew compileJava spotlessApply --console=plain -q; if \\($?\\) { \"COMPILE + SPOTLESS OK\" } else { \"FAILED\" })",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Out-File -Encoding utf8 \"$env:TEMP\\\\sim_cad.log\")",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Out-File -Encoding utf8 \"$env:TEMP\\\\sim_hopper.log\")"
+    ]
+  }
+}
