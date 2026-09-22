@@ -7,7 +7,7 @@
 
 package frc.robot.subsystems.shooter;
 
-import static frc.robot.subsystems.shooter.ShooterConstants.*;
+import static frc.robot.Constants.Shooter.*;
 
 import com.revrobotics.PersistMode;
 import com.revrobotics.RelativeEncoder;

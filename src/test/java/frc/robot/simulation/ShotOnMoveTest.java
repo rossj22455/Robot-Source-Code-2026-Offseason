@@ -14,7 +14,7 @@ import edu.wpi.first.hal.HAL;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.simulation.SimHooks;
-import frc.robot.subsystems.shooter.ShooterConstants;
+import frc.robot.Constants;
 import frc.robot.util.ShotOnMoveSolver;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.Arena2026Rebuilt;
@@ -73,12 +73,12 @@ class ShotOnMoveTest {
     arena.addGamePieceProjectile(
         new RebuiltFuelOnFly(
             ROBOT_POSITION,
-            ShooterConstants.BALL_EXIT_OFFSET,
+            Constants.Shooter.BALL_EXIT_OFFSET,
             new ChassisSpeeds(fieldVelocity.getX(), fieldVelocity.getY(), 0.0),
             heading,
-            Meters.of(ShooterConstants.BALL_EXIT_HEIGHT_METERS),
+            Meters.of(Constants.Shooter.BALL_EXIT_HEIGHT_METERS),
             MetersPerSecond.of(ShotOnMoveSolver.ballSpeedMps(rangeMeters)),
-            Degrees.of(ShooterConstants.HOOD_ANGLE_DEG)));
+            Degrees.of(Constants.Shooter.HOOD_ANGLE_DEG)));
   }
 
   /** Steps arena physics and the FPGA clock together long enough for the shot to resolve. */

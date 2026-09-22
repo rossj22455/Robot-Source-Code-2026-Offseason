@@ -91,11 +91,7 @@
     },
     {
       "waypointRelativePos": 3.036247334754793,
-      "rotationDegrees": -90.11243540726991
-    },
-    {
-      "waypointRelativePos": 3.923240938166315,
-      "rotationDegrees": -90.0
+      "rotationDegrees": -46.536
     }
   ],
   "constraintZones": [
@@ -125,7 +121,7 @@
   },
   "goalEndState": {
     "velocity": 0,
-    "rotation": -46.53630012888378
+    "rotation": -46.536
   },
   "reversed": false,
   "folder": "Bump",

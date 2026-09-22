@@ -15,6 +15,7 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.GenericHID;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -89,6 +90,10 @@ public class RobotContainer {
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
 
+  // Elapsed-time tracker for the firing sequence: delays the intake herd-home so the intake keeps
+  // collecting for a moment before it sweeps balls in (see shootCommand)
+  private final Timer shootTimer = new Timer();
+
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
     switch (Constants.currentMode) {
@@ -104,9 +109,9 @@ public class RobotContainer {
             new Vision(
                 drive::addVisionMeasurement,
                 drive::getPose,
-                new VisionIOPhotonVision(camera0Name, robotToCamera0, cameraRoles[0]),
-                new VisionIOPhotonVision(camera1Name, robotToCamera1, cameraRoles[1]),
-                new VisionIOPhotonVision(camera2Name, robotToCamera2, cameraRoles[2]));
+                // Single camera for now (centerline, shooter-facing). Vision accepts any number of
+                // VisionIO instances — add camera1/camera2 back here when more cameras are mounted.
+                new VisionIOPhotonVision(camera0Name, robotToCamera0, cameraRoles[0]));
 
         intake = new Intake(new IntakeLinearIOSparkMax(), new IntakeRollerIOSparkMax());
         shooter =
@@ -155,20 +160,11 @@ public class RobotContainer {
             new Vision(
                 drive::addVisionMeasurement,
                 drive::getPose,
+                // Single camera for now (centerline, shooter-facing) — mirrors the REAL wiring.
                 new VisionIOPhotonVisionSim(
                     camera0Name,
                     robotToCamera0,
                     cameraRoles[0],
-                    driveSimulation::getSimulatedDriveTrainPose),
-                new VisionIOPhotonVisionSim(
-                    camera1Name,
-                    robotToCamera1,
-                    cameraRoles[1],
-                    driveSimulation::getSimulatedDriveTrainPose),
-                new VisionIOPhotonVisionSim(
-                    camera2Name,
-                    robotToCamera2,
-                    cameraRoles[2],
                     driveSimulation::getSimulatedDriveTrainPose));
 
         intake = new Intake(new IntakeLinearIOSparkMaxSim(), new IntakeRollerIOSparkMaxSim());
@@ -326,10 +322,19 @@ public class RobotContainer {
 
     // ---- Mechanism bindings (PLACEHOLDER layout — adjust to driver preference) ----
 
+    // Hold to home the intake slide (stall-homes into the stowed stop, then zeros). Deliberately
+    // NOT on enable — the slide only moves while this is held, and releasing aborts, so nobody is
+    // caught by surprise motion. Must be done once per power cycle before the intake will deploy.
+    controller.povDown().whileTrue(intake.homeCommand());
+
     // Deploy the intake (stays out afterward) and run the rollers while held
     controller.L2().whileTrue(intake.intakeCommand());
 
     controller.L1().onTrue(intake.retractCommand());
+
+    // Emergency fast stow: bring the intake all the way home now, on an aggressive profile,
+    // interrupting whatever else was using it (including a held shot)
+    controller.triangle().onTrue(intake.fastRetractCommand());
 
     // Full firing sequence while held: heading auto-locks onto the hub (driver keeps translation
     // on the sticks) while the drum spins to the vision-mapped RPM; the kicker and indexer feed
@@ -348,12 +353,6 @@ public class RobotContainer {
    * only leave when genuinely on target. The intake sweeps in and shutters to herd balls for the
    * duration, returning to its extended posture afterward.
    */
-  // While aiming+shooting, cap translation to this fraction of max speed (~1.1 m/s of the
-  // 4.58 m/s max). The 64 deg lob flies ~1 s, so lead error scales with speed x time-of-flight
-  // error — the shoot-on-the-move compensation is sim-validated up to ~1.5 m/s, and this keeps
-  // the driver inside that envelope while still able to reposition.
-  private static final double SHOOT_ON_MOVE_SPEED_SCALAR = 0.25;
-
   private Command aimAndShootCommand() {
     return Commands.parallel(
             DriveCommands.joystickDriveAtAngle(
@@ -361,7 +360,7 @@ public class RobotContainer {
                 () -> -controller.getLeftY(),
                 () -> -controller.getLeftX(),
                 this::getTargetHeading,
-                SHOOT_ON_MOVE_SPEED_SCALAR),
+                Constants.Shooter.SHOOT_ON_MOVE_SPEED_SCALAR),
             shootCommand())
         .withName("AimAndShoot");
   }
@@ -434,29 +433,39 @@ public class RobotContainer {
               shooter.startSpinUp();
               shooter.runKickerFeed(); // No-op until isReadyToShoot()
               indexer.feed(); // Blocked by the interlock until isReadyToShoot()
-              intake.startAggregating(); // Sweep in + shutter to herd balls (idempotent)
+              // Keep collecting at first; only after the delay does the intake sweep in and rock
+              // to herd the remaining balls inward (idempotent — safe to call every loop)
+              if (shootTimer.hasElapsed(Constants.Shooter.SHOOT_HERD_DELAY_SECS)) {
+                intake.startAggregating();
+              }
             },
             () -> {
-              shooter.stopShooter();
+              shooter.stopShooter(); // Drum drops to idle spin, not a dead stop
               shooter.stopKicker();
               indexer.stop();
-              intake.stopAggregating(); // Back to the resting EXTENDED posture
+              intake.stopAggregating();
+              intake.retract(); // Stay home until L2 deploys the intake again
             },
             shooter,
             indexer,
             intake)
+        .beforeStarting(shootTimer::restart)
         .withName("Shoot");
   }
 
-  /** Reverses the indexer and kicker together to clear a jam. */
+  /**
+   * Clears a chute jam while held: the kicker reverses at a moderate speed and the indexer belt
+   * reverses more gently to back the jam out, while the drum spins forward a little faster than
+   * idle to fling clear anything stuck at the drum.
+   */
   private Command unjamCommand() {
     return Commands.runEnd(
             () -> {
-              shooter.runKickerReverse();
-              indexer.reverse();
+              shooter.startUnjam(); // drum forward faster + kicker moderate reverse
+              indexer.reverse(); // belt gentle reverse
             },
             () -> {
-              shooter.stopKicker();
+              shooter.stopUnjam();
               indexer.stop();
             },
             shooter,
@@ -480,8 +489,8 @@ public class RobotContainer {
   private void configureSimTestSequence() {
     Command testSequence =
         Commands.sequence(
-                Commands.print("[SIMTEST] enabled - waiting for intake homing"),
-                Commands.waitSeconds(5.0),
+                Commands.print("[SIMTEST] enabled - homing intake (button-driven now)"),
+                intake.homeCommand().withTimeout(6.0),
                 Commands.runOnce(
                     () ->
                         System.out.printf(

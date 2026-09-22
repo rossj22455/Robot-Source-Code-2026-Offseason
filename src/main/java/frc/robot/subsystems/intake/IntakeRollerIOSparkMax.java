@@ -7,7 +7,7 @@
 
 package frc.robot.subsystems.intake;
 
-import static frc.robot.subsystems.intake.IntakeConstants.*;
+import static frc.robot.Constants.Intake.*;
 
 import com.revrobotics.PersistMode;
 import com.revrobotics.RelativeEncoder;

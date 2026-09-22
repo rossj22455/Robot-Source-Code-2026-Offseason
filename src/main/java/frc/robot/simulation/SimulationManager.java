@@ -19,8 +19,7 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Timer;
-import frc.robot.subsystems.intake.IntakeConstants;
-import frc.robot.subsystems.shooter.ShooterConstants;
+import frc.robot.Constants;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.DoubleSupplier;
@@ -61,12 +60,13 @@ public class SimulationManager {
   // drum can't recover between volleys, the achieved rate is lower (that's the robot's real
   // limit, not the feed's).
   private static final double DEFAULT_BALLS_PER_SECOND = 18;
-  // Physical shot geometry lives in ShooterConstants (shared with the real robot's live
+  // Physical shot geometry lives in Constants.Shooter (shared with the real robot's live
   // trajectory prediction in RobotVisualizer); aliased here for readability
-  private static final double SHOT_EFFICIENCY = ShooterConstants.SURFACE_TO_BALL_SPEED_RATIO;
-  private static final double SHOT_ANGLE_DEG = ShooterConstants.HOOD_ANGLE_DEG;
-  private static final double SHOT_INITIAL_HEIGHT_METERS = ShooterConstants.BALL_EXIT_HEIGHT_METERS;
-  private static final Translation2d SHOOTER_POSITION_ON_ROBOT = ShooterConstants.BALL_EXIT_OFFSET;
+  private static final double SHOT_EFFICIENCY = Constants.Shooter.SURFACE_TO_BALL_SPEED_RATIO;
+  private static final double SHOT_ANGLE_DEG = Constants.Shooter.HOOD_ANGLE_DEG;
+  private static final double SHOT_INITIAL_HEIGHT_METERS =
+      Constants.Shooter.BALL_EXIT_HEIGHT_METERS;
+  private static final Translation2d SHOOTER_POSITION_ON_ROBOT = Constants.Shooter.BALL_EXIT_OFFSET;
 
   // 3-wide shooter lane pitch: the drum is 21.004 in wide, so three lanes sit at 0 and
   // +/- 7.0 in (21.004 / 3)
@@ -121,8 +121,8 @@ public class SimulationManager {
             driveSimulation,
             Meters.of(INTAKE_WIDTH_METERS),
             Meters.of(
-                IntakeConstants.LINEAR_MAX_POSITION_METERS
-                    * Math.cos(IntakeConstants.RACK_ANGLE_RAD)),
+                Constants.Intake.LINEAR_MAX_POSITION_METERS
+                    * Math.cos(Constants.Intake.RACK_ANGLE_RAD)),
             INTAKE_SIDE,
             1);
 
@@ -138,7 +138,7 @@ public class SimulationManager {
     boolean intakeActive =
         rollerAppliedVolts.getAsDouble() > ROLLER_ACTIVE_VOLTS
             && intakePositionMeters.getAsDouble()
-                > INTAKE_DEPLOYED_FRACTION * IntakeConstants.LINEAR_EXTENDED_POSITION_METERS
+                > INTAKE_DEPLOYED_FRACTION * Constants.Intake.LINEAR_EXTENDED_POSITION_METERS
             && ballProgress.size() < HOPPER_CAPACITY;
 
     if (intakeActive) {
@@ -285,7 +285,7 @@ public class SimulationManager {
             / 60.0
             * 2.0
             * Math.PI
-            * ShooterConstants.DRUM_RADIUS_METERS;
+            * Constants.Shooter.DRUM_RADIUS_METERS;
     double launchSpeedMps = Math.max(1.0, drumSurfaceSpeedMps * SHOT_EFFICIENCY);
 
     // A volley fires only the balls that have actually reached the staging area (up to 3);

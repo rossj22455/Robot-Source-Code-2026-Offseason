@@ -13,8 +13,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
-import frc.robot.subsystems.intake.IntakeConstants;
-import frc.robot.subsystems.shooter.ShooterConstants;
+import frc.robot.Constants;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.DoubleSupplier;
@@ -55,9 +54,9 @@ public class RobotVisualizer {
   private static final double EXTENSION_DIRECTION_X = -1.0;
   private static final Translation3d INTAKE_TRAVEL_UNIT_VECTOR =
       new Translation3d(
-          EXTENSION_DIRECTION_X * Math.cos(IntakeConstants.RACK_ANGLE_RAD),
+          EXTENSION_DIRECTION_X * Math.cos(Constants.Intake.RACK_ANGLE_RAD),
           0.0,
-          -Math.sin(IntakeConstants.RACK_ANGLE_RAD));
+          -Math.sin(Constants.Intake.RACK_ANGLE_RAD));
 
   private final Supplier<Pose2d> robotPoseSupplier;
   private final DoubleSupplier intakePositionMeters;
@@ -122,8 +121,8 @@ public class RobotVisualizer {
             / 60.0
             * 2.0
             * Math.PI
-            * ShooterConstants.DRUM_RADIUS_METERS
-            * ShooterConstants.SURFACE_TO_BALL_SPEED_RATIO;
+            * Constants.Shooter.DRUM_RADIUS_METERS
+            * Constants.Shooter.SURFACE_TO_BALL_SPEED_RATIO;
 
     // Only draw the parabola while the shooter is actually spinning
     if (launchSpeedMps < 1.0) {
@@ -132,18 +131,18 @@ public class RobotVisualizer {
     }
 
     Pose2d robotPose = robotPoseSupplier.get();
-    double angleRad = Math.toRadians(ShooterConstants.HOOD_ANGLE_DEG);
+    double angleRad = Math.toRadians(Constants.Shooter.HOOD_ANGLE_DEG);
     double vx = launchSpeedMps * Math.cos(angleRad);
     double vz = launchSpeedMps * Math.sin(angleRad);
 
     Rotation2d heading = robotPose.getRotation();
     Translation2d fieldStart =
-        robotPose.getTranslation().plus(ShooterConstants.BALL_EXIT_OFFSET.rotateBy(heading));
+        robotPose.getTranslation().plus(Constants.Shooter.BALL_EXIT_OFFSET.rotateBy(heading));
 
     List<Pose3d> trajectoryPoints = new ArrayList<>();
-    double z = ShooterConstants.BALL_EXIT_HEIGHT_METERS;
+    double z = Constants.Shooter.BALL_EXIT_HEIGHT_METERS;
     for (double t = 0.0; z >= 0.0 && t < 3.0; t += 0.05) {
-      z = ShooterConstants.BALL_EXIT_HEIGHT_METERS + (vz * t) - (4.905 * t * t);
+      z = Constants.Shooter.BALL_EXIT_HEIGHT_METERS + (vz * t) - (4.905 * t * t);
       Translation2d currentXY = fieldStart.plus(new Translation2d(vx * t, heading));
       trajectoryPoints.add(
           new Pose3d(currentXY.getX(), currentXY.getY(), Math.max(z, 0.0), Rotation3d.kZero));

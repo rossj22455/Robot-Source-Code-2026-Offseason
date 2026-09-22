@@ -8,7 +8,7 @@
 package frc.robot.subsystems.intake;
 
 import static edu.wpi.first.units.Units.Amps;
-import static frc.robot.subsystems.intake.IntakeConstants.*;
+import static frc.robot.Constants.Intake.*;
 
 import com.revrobotics.sim.SparkMaxSim;
 import edu.wpi.first.math.MathUtil;

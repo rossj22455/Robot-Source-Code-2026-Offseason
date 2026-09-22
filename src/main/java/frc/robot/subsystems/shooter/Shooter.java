@@ -7,7 +7,7 @@
 
 package frc.robot.subsystems.shooter;
 
-import static frc.robot.subsystems.shooter.ShooterConstants.*;
+import static frc.robot.Constants.Shooter.*;
 
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -58,6 +58,7 @@ public class Shooter extends SubsystemBase {
   private final Debouncer readyDebouncer = new Debouncer(DRUM_READY_DEBOUNCE_SECS);
 
   private boolean spinUpRequested = false;
+  private boolean unjamRequested = false;
   private double targetRpm = 0.0;
   private boolean readyToShoot = false;
 
@@ -131,6 +132,7 @@ public class Shooter extends SubsystemBase {
     // State update: compute the vision-mapped target and command the onboard velocity loop
     if (DriverStation.isDisabled()) {
       spinUpRequested = false;
+      unjamRequested = false;
     }
     // Target RPM source, in priority order. Vision can never be relied on, so losing it must
     // never disable the shooter — it only degrades to a fixed setpoint:
@@ -141,7 +143,14 @@ public class Shooter extends SubsystemBase {
     boolean funneling = funnelModeSupplier.getAsBoolean();
     boolean visionValid = distanceValidSupplier.getAsBoolean();
     String targetingMode = funneling ? "FUNNELING" : (visionValid ? "HUB_VISION" : "HUB_FALLBACK");
-    if (spinUpRequested) {
+    if (unjamRequested) {
+      // Chute unjam (highest priority): spin the drum FORWARD a little faster than idle to fling
+      // a ball stuck in the chute clear, and reverse the kicker at a moderate speed to back the
+      // jam out. Not a shot — targetRpm stays 0 so the ready-to-shoot interlock never engages.
+      targetRpm = 0.0;
+      drumIO.setVelocityRpm(UNJAM_DRUM_RPM);
+      kickerIO.setVoltage(KICKER_REVERSE_VOLTS);
+    } else if (spinUpRequested) {
       if (funneling) {
         targetRpm = FUNNEL_RPM;
       } else if (visionValid) {
@@ -151,9 +160,16 @@ public class Shooter extends SubsystemBase {
       }
       drumIO.setVelocityRpm(targetRpm);
     } else {
+      // Not shooting: keep the shot target at 0 (so the ready-to-shoot interlock stays false),
+      // stop feeding, but hold the drum at a low idle spin while enabled so the next spin-up is
+      // a small step rather than from a dead stop. Coast when disabled (motors can't move anyway).
       targetRpm = 0.0;
-      drumIO.stop();
       kickerIO.setVoltage(0.0);
+      if (DriverStation.isEnabled()) {
+        drumIO.setVelocityRpm(SHOOTER_IDLE_RPM);
+      } else {
+        drumIO.stop();
+      }
     }
     visionFallbackAlert.set(spinUpRequested && !funneling && !visionValid);
 
@@ -178,6 +194,7 @@ public class Shooter extends SubsystemBase {
     Logger.recordOutput("Shooter/Drum/VelocityErrorRpm", drumInputs.velocityRpm - targetRpm);
     Logger.recordOutput("Shooter/ReadyToShoot", readyToShoot);
     Logger.recordOutput("Shooter/SpinUpRequested", spinUpRequested);
+    Logger.recordOutput("Shooter/UnjamActive", unjamRequested);
     Logger.recordOutput("Shooter/HubDistanceMeters", hubDistanceSupplier.getAsDouble());
     Logger.recordOutput("Shooter/DistanceValid", visionValid);
     Logger.recordOutput("Shooter/TargetingMode", targetingMode);
@@ -197,7 +214,7 @@ public class Shooter extends SubsystemBase {
 
   /**
    * Anti-jamming interlock. True only when the drum's real-time velocity has stabilized within
-   * {@link ShooterConstants#DRUM_READY_TOLERANCE_RPM} of the vision-mapped target RPM. The kicker
+   * {@link Constants.Shooter#DRUM_READY_TOLERANCE_RPM} of the vision-mapped target RPM. The kicker
    * and the indexer must never feed into the drum while this is false.
    */
   public boolean isReadyToShoot() {
@@ -220,9 +237,19 @@ public class Shooter extends SubsystemBase {
     kickerIO.setVoltage(isReadyToShoot() ? KICKER_FEED_VOLTS : 0.0);
   }
 
-  /** Runs the kicker in reverse to clear a jam (always permitted). */
-  public void runKickerReverse() {
-    kickerIO.setVoltage(KICKER_REVERSE_VOLTS);
+  /**
+   * Enters chute-unjam mode: the drum spins forward a little faster than idle to fling a stuck ball
+   * clear while the kicker reverses at a moderate speed to back the jam out. Handled in {@link
+   * #periodic()} so it cleanly overrides idle/spin-up. Pair with the indexer's reverse for a full
+   * clear.
+   */
+  public void startUnjam() {
+    unjamRequested = true;
+  }
+
+  /** Exits chute-unjam mode; the drum returns to idle spin and the kicker stops. */
+  public void stopUnjam() {
+    unjamRequested = false;
   }
 
   /** Stops the kicker. */

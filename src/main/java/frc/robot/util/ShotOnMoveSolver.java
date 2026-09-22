@@ -10,7 +10,7 @@ package frc.robot.util;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.interpolation.InterpolatingDoubleTreeMap;
-import frc.robot.subsystems.shooter.ShooterConstants;
+import frc.robot.Constants;
 
 /**
  * Shoot-on-the-move solver: while the ball is in the air for time T, the robot's velocity is
@@ -30,14 +30,14 @@ import frc.robot.subsystems.shooter.ShooterConstants;
  */
 public final class ShotOnMoveSolver {
   private static final int SOLVER_ITERATIONS = 3;
-  private static final double COS_HOOD = Math.cos(Math.toRadians(ShooterConstants.HOOD_ANGLE_DEG));
+  private static final double COS_HOOD = Math.cos(Math.toRadians(Constants.Shooter.HOOD_ANGLE_DEG));
 
   // Distance -> RPM, mirrored from the Shooter's table (built once; the map clamps to its edge
   // entries outside the tuned 1.7-4.3 m range, matching the Shooter's behavior)
   private static final InterpolatingDoubleTreeMap RPM_MAP = new InterpolatingDoubleTreeMap();
 
   static {
-    for (double[] point : ShooterConstants.DISTANCE_TO_RPM_MAP) {
+    for (double[] point : Constants.Shooter.DISTANCE_TO_RPM_MAP) {
       RPM_MAP.put(point[0], point[1]);
     }
   }
@@ -89,8 +89,8 @@ public final class ShotOnMoveSolver {
         / 60.0
         * 2.0
         * Math.PI
-        * ShooterConstants.DRUM_RADIUS_METERS
-        * ShooterConstants.SURFACE_TO_BALL_SPEED_RATIO;
+        * Constants.Shooter.DRUM_RADIUS_METERS
+        * Constants.Shooter.SURFACE_TO_BALL_SPEED_RATIO;
   }
 
   /** Vacuum-ballistics flight time to cover the horizontal distance on the fixed hood angle. */

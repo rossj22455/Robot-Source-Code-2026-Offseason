@@ -8,7 +8,7 @@
 package frc.robot.subsystems.shooter;
 
 import static edu.wpi.first.units.Units.Amps;
-import static frc.robot.subsystems.shooter.ShooterConstants.*;
+import static frc.robot.Constants.Shooter.*;
 
 import com.ctre.phoenix6.sim.TalonFXSimState;
 import edu.wpi.first.math.system.plant.DCMotor;

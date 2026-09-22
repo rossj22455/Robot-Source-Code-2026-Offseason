@@ -7,7 +7,7 @@
 
 package frc.robot.subsystems.intake;
 
-import static frc.robot.subsystems.intake.IntakeConstants.*;
+import static frc.robot.Constants.Intake.*;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ProfiledPIDController;
@@ -25,16 +25,17 @@ import org.littletonrobotics.junction.Logger;
  * Intake with a linear rack articulation (NEO, RIO-side profiled PID) and a dual-roller bar (NEO
  * master + inverted hardware follower).
  *
- * <p>Linear articulation lifecycle: on the first enable after boot the mechanism homes by driving
- * slowly into the retracted hardstop until a stall (current rise + velocity stagnation) is
- * detected, then zeros the encoder. Position control is unavailable until homing succeeds. While
- * holding position against the hardstop, the smart current limit is dropped heavily to protect the
- * NEO; it is restored while moving.
+ * <p>Linear articulation lifecycle: the mechanism homes only when the driver holds the home button
+ * (never automatically on enable, so the slide can't surprise anyone with motion at match start).
+ * Homing drives slowly into the retracted hardstop until a stall (current rise + velocity
+ * stagnation) is detected, then zeros the encoder. Position control is unavailable until homing
+ * succeeds. While holding position against the hardstop, the smart current limit is dropped heavily
+ * to protect the NEO; it is restored while moving.
  */
 public class Intake extends SubsystemBase {
   /** Linear articulation state machine. */
   public enum LinearState {
-    /** Not yet homed; waiting for an enable edge to begin homing. */
+    /** Not yet homed; waiting for the driver to hold the home button to begin homing. */
     UNHOMED,
     /** Driving into the hardstop watching for a stall. */
     HOMING,
@@ -62,8 +63,10 @@ public class Intake extends SubsystemBase {
   // stays out until explicitly retracted (or restored by the aggregation sweep).
   private double goalMeters = LINEAR_RETRACTED_POSITION_METERS;
   private int appliedCurrentLimitAmps = LINEAR_NORMAL_CURRENT_LIMIT_AMPS;
-  private boolean wasEnabled = false;
   private boolean homingFailed = false;
+  // State to fall back to if a homing attempt is aborted (home button released early), so an
+  // aborted re-home leaves an already-homed slide homed instead of dropping it to UNHOMED
+  private LinearState stateBeforeHoming = LinearState.UNHOMED;
 
   // Firing aggregation: sweep in slowly, then shutter between retracted and SHUTTER_OUT to herd
   // balls; the pre-aggregation posture is restored afterward
@@ -73,13 +76,23 @@ public class Intake extends SubsystemBase {
   private static final TrapezoidProfile.Constraints AGGREGATE_CONSTRAINTS =
       new TrapezoidProfile.Constraints(
           AGGREGATE_MAX_VELOCITY_METERS_PER_SEC, AGGREGATE_MAX_ACCELERATION_METERS_PER_SEC_SQ);
+  // Aggressive profile for the emergency force-retract button
+  private static final TrapezoidProfile.Constraints FAST_CONSTRAINTS =
+      new TrapezoidProfile.Constraints(
+          FAST_RETRACT_MAX_VELOCITY_METERS_PER_SEC,
+          FAST_RETRACT_MAX_ACCELERATION_METERS_PER_SEC_SQ);
   private boolean aggregating = false;
   private boolean shutterOut = false;
   private double preAggregationGoalMeters = LINEAR_RETRACTED_POSITION_METERS;
 
+  private final Alert notHomedAlert =
+      new Alert(
+          "Intake NOT HOMED — hold the home button (D-pad Down) before deploying.",
+          AlertType.kWarning);
   private final Alert homingFailedAlert =
       new Alert(
-          "Intake homing timed out; position control disabled until re-enable.", AlertType.kError);
+          "Intake homing timed out; position control disabled — hold the home button to retry.",
+          AlertType.kError);
   private final Alert linearDisconnectedAlert =
       new Alert("Intake linear motor is disconnected.", AlertType.kError);
   private final Alert rollerDisconnectedAlert =
@@ -110,22 +123,18 @@ public class Intake extends SubsystemBase {
         Math.max(rollerInputs.masterTempCelsius, rollerInputs.followerTempCelsius)
             > MOTOR_TEMP_WARNING_CELSIUS);
     homingFailedAlert.set(homingFailed);
+    // Driver-facing reminder: lit whenever the slide still needs homing (idle + unhomed). Hidden
+    // while homing is actively running and once homed; the timeout alert above covers failures.
+    notHomedAlert.set(linearState == LinearState.UNHOMED && !homingFailed);
 
     boolean enabled = DriverStation.isEnabled();
-    boolean enableEdge = enabled && !wasEnabled;
-    wasEnabled = enabled;
-    if (enableEdge) {
-      // Allow a homing retry after a disable/enable cycle
-      homingFailed = false;
-    }
 
     switch (linearState) {
       case UNHOMED -> {
+        // Hold still and wait for an explicit homing request (homeCommand). The slide never moves
+        // on enable — it only moves when the driver deliberately holds the home button, so nobody
+        // can be caught by surprise motion at match start.
         linearIO.setVoltage(0.0);
-        // Automatic boot-up homing: start on the first enable (motors cannot move while disabled)
-        if (enableEdge && !homingFailed) {
-          startHoming();
-        }
       }
 
       case HOMING -> {
@@ -201,6 +210,33 @@ public class Intake extends SubsystemBase {
     linearState = LinearState.HOMING;
     homingTimer.restart();
     stallDebouncer.calculate(false); // Reset the debounce window
+  }
+
+  /**
+   * Requests the stall-homing sequence. No-op while disabled (the motor can't move) — press the
+   * home button again once enabled. Safe to call from any state to re-establish the zero.
+   */
+  public void beginHoming() {
+    if (DriverStation.isEnabled() && linearState != LinearState.HOMING) {
+      homingFailed = false;
+      stateBeforeHoming = linearState; // remember where to return if this attempt is aborted
+      startHoming();
+    }
+  }
+
+  /**
+   * Aborts an in-progress homing (e.g. the home button was released before it finished), returning
+   * the slide to exactly the state it was in before homing started. No-op if not currently homing.
+   */
+  public void abortHoming() {
+    if (linearState == LinearState.HOMING) {
+      linearIO.setVoltage(0.0);
+      linearState = stateBeforeHoming;
+      if (linearState == LinearState.RUNNING) {
+        // Was already homed before this re-home attempt: resume position control bumplessly
+        linearController.reset(linearInputs.positionMeters);
+      }
+    }
   }
 
   private boolean isHoldingAgainstHardstop() {
@@ -283,9 +319,39 @@ public class Intake extends SubsystemBase {
         .withName("IntakeCollect");
   }
 
+  /**
+   * Command: hold to home the slide. Drives slowly into the stowed hardstop and zeros there;
+   * finishes the instant homing completes. Releasing the button before it finishes aborts the move
+   * (safety: the slide stops the moment you let go). The slide will not accept deploy or position
+   * commands until this has completed at least once per power cycle.
+   */
+  public Command homeCommand() {
+    return startEnd(this::beginHoming, this::abortHoming)
+        .until(this::isHomed)
+        .withName("IntakeHome");
+  }
+
   /** Command: explicitly stow the intake (the only way it retracts and stays in). */
   public Command retractCommand() {
     return runOnce(this::retract).withName("IntakeRetract");
+  }
+
+  /**
+   * Command: emergency "come home now" — cancels any active aggregation and drives the intake to
+   * the retracted hardstop on the aggressive {@link #FAST_CONSTRAINTS} profile, restoring the
+   * normal profile once home. Requires the intake subsystem for its whole duration, so it
+   * interrupts whatever else was using the intake (including a held shot).
+   */
+  public Command fastRetractCommand() {
+    return runOnce(
+            () -> {
+              aggregating = false;
+              linearController.setConstraints(FAST_CONSTRAINTS);
+              setGoalMeters(LINEAR_RETRACTED_POSITION_METERS);
+            })
+        .andThen(run(() -> {}).until(this::isAtGoal))
+        .finallyDo(() -> linearController.setConstraints(NORMAL_CONSTRAINTS))
+        .withName("IntakeFastRetract");
   }
 
   /** Command: run the rollers in reverse to eject a game piece. */

@@ -8,7 +8,11 @@
       "Bash(JAVA_HOME=\"C:/Users/Public/wpilib/2026/jdk\" ./gradlew compileJava -q)",
       "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; ./gradlew compileJava spotlessApply --console=plain -q; if \\($?\\) { \"COMPILE + SPOTLESS OK\" } else { \"FAILED\" })",
       "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Out-File -Encoding utf8 \"$env:TEMP\\\\sim_cad.log\")",
-      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Out-File -Encoding utf8 \"$env:TEMP\\\\sim_hopper.log\")"
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk'; $env:SIM_TEST = '1'; ./gradlew simulateJava --console=plain 2>&1 | Out-File -Encoding utf8 \"$env:TEMP\\\\sim_hopper.log\")",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk\"; ./gradlew compileJava -q 2>&1 | Select-Object -Last 40)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk\"; ./gradlew compileJava 2>&1 | Select-String -Pattern \"BUILD SUCCESSFUL|BUILD FAILED|error:\")",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk\"; ./gradlew compileJava compileTestJava 2>&1 | Select-String -Pattern \"BUILD SUCCESSFUL|BUILD FAILED|error:|cannot find symbol|Constants\")",
+      "Bash(python -c ' *)"
     ]
   }
 }

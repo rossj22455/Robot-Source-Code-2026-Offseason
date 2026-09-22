@@ -15,9 +15,11 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.util.Units;
 
 /**
- * Constants for the three-camera PhotonVision array. All physical values are PLACEHOLDERS to be
- * measured and populated before use; filter thresholds and std-dev baselines are the published
- * AdvantageKit vision template defaults, to be tuned on the field.
+ * Constants for the PhotonVision pose-estimation cameras. Only one camera is wired right now (a
+ * single centerline, shooter-facing camera); the array-based implementation still supports adding
+ * more — define another robotToCameraN and wire it in RobotContainer. All physical values are
+ * PLACEHOLDERS to be measured and populated before use; filter thresholds and std-dev baselines are
+ * the published AdvantageKit vision template defaults, to be tuned on the field.
  */
 public class VisionConstants {
   // AprilTag layout — 2026 REBUILT welded field (kDefaultField == k2026RebuiltWelded).
@@ -32,26 +34,28 @@ public class VisionConstants {
   }
 
   // Camera names — PLACEHOLDER: must exactly match the names configured in the PhotonVision web UI
-  public static String camera0Name = "camera_0"; // Right Side
-  public static String camera1Name = "camera_1"; // Left Side
-  public static String camera2Name = "camera_2"; // FWD facing Cam Shooter
+  public static String camera0Name = "camera_0"; // Middle, shooter-facing (only camera wired now)
+  public static String camera1Name = "camera_1"; // Left Side (example mount — not wired yet)
+  public static String camera2Name = "camera_2"; // Right Side (example mount — not wired yet)
 
-  // Camera roles, indexed to match the IO array order in RobotContainer.
-  // All three cameras contribute to pose estimation; GAMEPIECE role is unused for now (see
-  // VisionIOPhotonVisionSim's gamepieceSim, which is commented out to match).
+  // Camera roles, indexed to match the IO array order in RobotContainer. Only index 0 is wired
+  // right now. GAMEPIECE role is unused for now (see VisionIOPhotonVisionSim's gamepieceSim, which
+  // is commented out to match).
   public static CameraRole[] cameraRoles =
       new CameraRole[] {CameraRole.APRILTAG, CameraRole.APRILTAG, CameraRole.APRILTAG};
 
-  // Robot-to-camera transforms — PLACEHOLDER: measure from robot center (x forward, y left, z up)
+  // Robot-to-camera transforms — PLACEHOLDER: measure from robot center (x forward, y left, z up).
+  // Only camera0 is wired right now (see RobotContainer): a single camera on the centerline (y=0),
+  // shooter-facing, pitched up 15 deg. NOTE: -15 deg here means tilted UP 15 deg (WPILib pitch is
+  // positive-down); flip the sign if the camera is physically tilted down. camera1/camera2 below
+  // are example side mounts kept for when more cameras are added — they are not instantiated yet.
   public static Transform3d robotToCamera0 =
       new Transform3d(
-          Units.inchesToMeters(7.342),
-          Units.inchesToMeters(-12.580287),
-          Units.inchesToMeters(8.956792),
+          Units.inchesToMeters(14.172905),
+          0,
+          Units.inchesToMeters(12.381851),
           new Rotation3d(
-              Units.degreesToRadians(0),
-              Units.degreesToRadians(-10),
-              Units.degreesToRadians(-135)));
+              Units.degreesToRadians(0), Units.degreesToRadians(-15), Units.degreesToRadians(0)));
   public static Transform3d robotToCamera1 =
       new Transform3d(
           Units.inchesToMeters(7.342),
