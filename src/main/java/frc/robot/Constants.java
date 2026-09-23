@@ -42,9 +42,13 @@ public final class Constants {
    */
   public static final class Intake {
     // CAN IDs — PLACEHOLDER assignments, but note the legal FRC CAN device ID range is 0-62
-    public static final int LINEAR_MOTOR_ID = 44;
+    public static final int LINEAR_MOTOR_ID = 33;
     public static final int ROLLER_MASTER_ID = 45;
     public static final int ROLLER_FOLLOWER_ID = 46;
+
+    // The slide motor's raw direction is negative = extend (measured: fully extended read about
+    // -0.280 m). Inverting it makes positive = extend everywhere in code, matching the setpoints.
+    public static final boolean LINEAR_MOTOR_INVERTED = true;
 
     // Linear mechanism gearing: 16t gear drives a 62t gear, which drives a 10 DP, 10t pinion on the
     // rack. Pinion pitch diameter = 10 teeth / 10 DP = 1.0 in, so the rack travels PI * 1.0 in per
@@ -95,11 +99,14 @@ public final class Constants {
     // Homing: hold the home button to drive slowly into the retracted hardstop and detect the
     // stall via current rise + velocity stagnation. PLACEHOLDER values — verify direction (sign)
     // and thresholds on the real mechanism before first power-on.
+    // Negative = retract (motor is inverted, see LINEAR_MOTOR_INVERTED). Slowed from -1.5 V.
     public static final double HOMING_VOLTS = -1.5;
+    // A NEO stalled at 1 V only draws about 8.8 A, so the threshold sits well below that
     public static final double HOMING_STALL_CURRENT_AMPS = 8.0;
     public static final double HOMING_STALL_VELOCITY_METERS_PER_SEC = 0.005;
     public static final double HOMING_STALL_DEBOUNCE_SECS = 0.25;
-    public static final double HOMING_TIMEOUT_SECS = 4.0;
+    // Longer than before because the slower speed can take several seconds over full travel
+    public static final double HOMING_TIMEOUT_SECS = 10.0;
 
     // Thermal monitoring — PLACEHOLDER warning threshold
     public static final double MOTOR_TEMP_WARNING_CELSIUS = 80.0;
@@ -128,9 +135,9 @@ public final class Constants {
   public static final class Shooter {
     // CAN IDs — PLACEHOLDER assignments, but note the legal FRC CAN device ID range is 0-62;
     // out-of-range IDs are silently non-functional (drive uses 1-8, CANcoders 26-29, Pigeon 54)
-    public static final int DRUM_MASTER_ID = 40;
-    public static final int DRUM_FOLLOWER_ID = 41;
-    public static final int KICKER_MOTOR_ID = 42;
+    public static final int DRUM_MASTER_ID = 52;
+    public static final int DRUM_FOLLOWER_ID = 22;
+    public static final int KICKER_MOTOR_ID = 31;
 
     // Drum belt path: 12t pulley (Falcon) -> 105t pulley (intermediate) -> 15t pulley (drum).
     // With one pulley per shaft the intermediate 105t cancels out of the end-to-end ratio, so the
@@ -147,11 +154,17 @@ public final class Constants {
     // Drum onboard (Phoenix 6 device-level) velocity PID gains. kV is derived from the Falcon 500
     // free speed (6380 RPM = 106.3 rot/s at 12 V -> ~0.113 V per motor rot/s); kP is a gentle
     // starting value. PLACEHOLDER — retune on the real mechanism.
-    public static final double DRUM_P = 0.1; // PLACEHOLDER starting gain
+    // Tuned 2026-09-22 at 2000 RPM (no balls): spin-up peaks ~2050 at 0.3, ~2060 at 0.4, 0.6+
+    // oscillates. If spin-up overshoot matters later, Motion Magic Velocity (ramped setpoint + kA)
+    // would allow a stronger kP.
+    public static final double DRUM_P = 0.3;
     public static final double DRUM_I = 0.0;
     public static final double DRUM_D = 0.0;
-    public static final double DRUM_S = 0.0; // Static friction feedforward (volts)
-    public static final double DRUM_V = 12.0 / 106.3; // Velocity FF (volts per motor rot/s)
+    public static final double DRUM_S =
+        0.25; // Static friction FF (volts) — measured: starts at 0.25 V
+    // Velocity FF (volts per motor rot/s) — measured 2026-09-22 with kP=0: 0.108 @1500, 0.109
+    // @2000, 0.110 @2500 drum RPM (was the 12 / 106.3 = 0.113 spec-sheet value)
+    public static final double DRUM_V = 0.109;
 
     // Drum motor protection — PLACEHOLDER starting values
     public static final double DRUM_STATOR_CURRENT_LIMIT_AMPS = 60.0;
@@ -175,6 +188,12 @@ public final class Constants {
     // for the debounce period — PLACEHOLDER (tighten during tuning; "razor-thin" per design)
     public static final double DRUM_READY_TOLERANCE_RPM = 50.0;
     public static final double DRUM_READY_DEBOUNCE_SECS = 0.1;
+    // Hysteresis: once ready, feeding continues until the drum sags MORE than this below target.
+    // Each ball pulls the drum down on contact; without this the feed stutters on every ball.
+    // PLACEHOLDER — set just larger than the per-ball dip seen in Shooter/Drum/VelocityErrorRpm.
+    // Measured 2026-09-22 at 2000 RPM, kP 0.3: a full 3-ball volley dips ~500 RPM in 0.02 s and
+    // recovers in ~0.085 s, so 600 leaves margin without letting a genuinely slow drum feed.
+    public static final double DRUM_READY_DROP_ALLOWANCE_RPM = 600.0;
 
     // isReadyToShoot() also requires the robot heading to be within this tolerance of the hub
     // bearing (the hood is fixed, so aim IS heading). The hub radius (0.5969 m) subtends ~8 deg at
@@ -195,7 +214,7 @@ public final class Constants {
     // actively shooting, so spin-up to a shot RPM is a small step instead of from a dead stop.
     // Low enough that it can never satisfy the ready-to-shoot interlock (which requires an active
     // spin-up request anyway). PLACEHOLDER — keep just high enough to help spin-up.
-    public static final double SHOOTER_IDLE_RPM = 600.0;
+    public static final double SHOOTER_IDLE_RPM = 0.0;
 
     // Kicker (NEO through a 3:1 gearbox, basic voltage control) — PLACEHOLDER speeds
     public static final double KICKER_GEAR_RATIO = 3.0;
@@ -239,7 +258,7 @@ public final class Constants {
    */
   public static final class Indexer {
     // CAN ID — PLACEHOLDER assignment, but note the legal FRC CAN device ID range is 0-62
-    public static final int INDEXER_MOTOR_ID = 43;
+    public static final int INDEXER_MOTOR_ID = 20;
 
     // Belt gearing: 16t (Kraken) -> 70t (belt drive shaft), so 70/16 = 4.375 motor rotations per
     // belt-drive rotation. Derived from the mechanism, not tuned.

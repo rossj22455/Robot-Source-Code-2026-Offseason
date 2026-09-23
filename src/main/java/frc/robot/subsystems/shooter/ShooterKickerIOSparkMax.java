@@ -25,12 +25,18 @@ public class ShooterKickerIOSparkMax implements ShooterKickerIO {
   private final RelativeEncoder encoder = motor.getEncoder();
   private final Debouncer connectedDebouncer = new Debouncer(0.5);
 
+  /**
+   * @param inverted flips both the motor output and the encoder so positive always means "extend".
+   *     The sim subclass passes false because its physics model is already built positive-extend.
+   */
   public ShooterKickerIOSparkMax() {
     var config = new SparkMaxConfig();
     config
+        .inverted(true)
         .idleMode(IdleMode.kBrake)
         .smartCurrentLimit(KICKER_CURRENT_LIMIT_AMPS)
         .voltageCompensation(12.0);
+
     // Report output-shaft (post 3:1 gearbox) velocity
     config.encoder.velocityConversionFactor(1.0 / KICKER_GEAR_RATIO);
     motor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);

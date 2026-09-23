@@ -139,6 +139,9 @@ public class Robot extends LoggedRobot {
   public void testInit() {
     // Cancels all running commands at the start of test mode.
     CommandScheduler.getInstance().cancelAll();
+
+    // Home the intake slide automatically on entering test mode
+    CommandScheduler.getInstance().schedule(robotContainer.getTestCommand());
   }
 
   /** This function is called periodically during test mode. */

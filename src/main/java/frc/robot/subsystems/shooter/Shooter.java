@@ -9,6 +9,7 @@ package frc.robot.subsystems.shooter;
 
 import static frc.robot.Constants.Shooter.*;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.interpolation.InterpolatingDoubleTreeMap;
@@ -58,6 +59,9 @@ public class Shooter extends SubsystemBase {
   private final Debouncer readyDebouncer = new Debouncer(DRUM_READY_DEBOUNCE_SECS);
 
   private boolean spinUpRequested = false;
+  // Manual test-shot RPM override (NaN = off). When set, the drum targets this RPM instead of the
+  // vision/fallback value and the aim check is skipped (the robot does not rotate for these shots)
+  private double manualRpm = Double.NaN;
   private boolean unjamRequested = false;
   private double targetRpm = 0.0;
   private boolean readyToShoot = false;
@@ -133,7 +137,9 @@ public class Shooter extends SubsystemBase {
     if (DriverStation.isDisabled()) {
       spinUpRequested = false;
       unjamRequested = false;
+      manualRpm = Double.NaN;
     }
+    boolean manual = !Double.isNaN(manualRpm);
     // Target RPM source, in priority order. Vision can never be relied on, so losing it must
     // never disable the shooter — it only degrades to a fixed setpoint:
     // 1. FUNNELING (in the neutral zone, hub shots illegal): fixed corner-lob RPM,
@@ -142,7 +148,10 @@ public class Shooter extends SubsystemBase {
     // 3. HUB_FALLBACK (vision stale): fixed fallback RPM; the driver ranges by eye.
     boolean funneling = funnelModeSupplier.getAsBoolean();
     boolean visionValid = distanceValidSupplier.getAsBoolean();
-    String targetingMode = funneling ? "FUNNELING" : (visionValid ? "HUB_VISION" : "HUB_FALLBACK");
+    String targetingMode =
+        manual
+            ? "MANUAL_TEST"
+            : (funneling ? "FUNNELING" : (visionValid ? "HUB_VISION" : "HUB_FALLBACK"));
     if (unjamRequested) {
       // Chute unjam (highest priority): spin the drum FORWARD a little faster than idle to fling
       // a ball stuck in the chute clear, and reverse the kicker at a moderate speed to back the
@@ -151,7 +160,9 @@ public class Shooter extends SubsystemBase {
       drumIO.setVelocityRpm(UNJAM_DRUM_RPM);
       kickerIO.setVoltage(KICKER_REVERSE_VOLTS);
     } else if (spinUpRequested) {
-      if (funneling) {
+      if (manual) {
+        targetRpm = manualRpm;
+      } else if (funneling) {
         targetRpm = FUNNEL_RPM;
       } else if (visionValid) {
         targetRpm = rpmMap.get(hubDistanceSupplier.getAsDouble());
@@ -165,13 +176,16 @@ public class Shooter extends SubsystemBase {
       // a small step rather than from a dead stop. Coast when disabled (motors can't move anyway).
       targetRpm = 0.0;
       kickerIO.setVoltage(0.0);
-      if (DriverStation.isEnabled()) {
-        drumIO.setVelocityRpm(SHOOTER_IDLE_RPM);
-      } else {
-        drumIO.stop();
-      }
+      // Idle spin disabled for tuning: coast the drum instead. Something must command the drum
+      // here, otherwise the Talon keeps running its last shot velocity request indefinitely.
+      drumIO.stop();
+      // if (DriverStation.isEnabled()) {
+      //   drumIO.setVelocityRpm(SHOOTER_IDLE_RPM);
+      // } else {
+      //   drumIO.stop();
+      // }
     }
-    visionFallbackAlert.set(spinUpRequested && !funneling && !visionValid);
+    visionFallbackAlert.set(spinUpRequested && !manual && !funneling && !visionValid);
 
     // Anti-jamming interlock: ready only when the drum has stabilized within a razor-thin
     // tolerance of the target RPM (debounced against momentary crossings) AND the robot is
@@ -182,12 +196,19 @@ public class Shooter extends SubsystemBase {
     double aimErrorDeg =
         Math.abs(robotHeadingSupplier.get().minus(targetHeadingSupplier.get()).getDegrees());
     boolean aimedAtTarget = aimErrorDeg <= AIM_TOLERANCE_DEG;
-    readyToShoot =
+    boolean shotConditions =
+        spinUpRequested
+            && targetRpm > 0.0
+            && (aimedAtTarget || manual); // Manual test shots fire wherever the robot faces
+    // Entry: the drum must settle within the tight tolerance (debounced) before feeding starts
+    boolean enteredReady =
         readyDebouncer.calculate(
-            spinUpRequested
-                && targetRpm > 0.0
-                && aimedAtTarget
+            shotConditions
                 && Math.abs(drumInputs.velocityRpm - targetRpm) <= DRUM_READY_TOLERANCE_RPM);
+    // Hold: once feeding, keep going through the per-ball RPM dips unless the drum sags past the
+    // drop allowance (hysteresis — prevents the feed stuttering on and off with every ball)
+    boolean holdingReady = drumInputs.velocityRpm >= targetRpm - DRUM_READY_DROP_ALLOWANCE_RPM;
+    readyToShoot = shotConditions && holdingReady && (readyToShoot || enteredReady);
 
     // Telemetry
     Logger.recordOutput("Shooter/Drum/TargetRpm", targetRpm);
@@ -207,9 +228,19 @@ public class Shooter extends SubsystemBase {
     spinUpRequested = true;
   }
 
+  /**
+   * TESTING: spins the drum to a fixed RPM (clamped to 0-5000) and lets the feed interlock ignore
+   * aim, so shots fire in whatever direction the robot faces. Cleared by {@link #stopShooter()}.
+   */
+  public void startManualSpinUp(double rpm) {
+    manualRpm = MathUtil.clamp(rpm, 0.0, 5000.0);
+    spinUpRequested = true;
+  }
+
   /** Stops the drum (coast) and the kicker. */
   public void stopShooter() {
     spinUpRequested = false;
+    manualRpm = Double.NaN;
   }
 
   /**

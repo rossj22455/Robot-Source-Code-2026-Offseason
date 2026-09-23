@@ -40,7 +40,9 @@ public class IndexerIOTalonFX implements IndexerIO {
 
   public IndexerIOTalonFX() {
     var config = new TalonFXConfiguration();
-    config.MotorOutput.NeutralMode = NeutralModeValue.Brake;
+    // Coast: the belt eases to a stop instead of braking hard whenever feeding stops (0 V output
+    // is treated as neutral, so this applies to every stop and interlock cut)
+    config.MotorOutput.NeutralMode = NeutralModeValue.Coast;
     config.CurrentLimits.StatorCurrentLimit = INDEXER_STATOR_CURRENT_LIMIT_AMPS;
     config.CurrentLimits.StatorCurrentLimitEnable = true;
     config.CurrentLimits.SupplyCurrentLimit = INDEXER_SUPPLY_CURRENT_LIMIT_AMPS;

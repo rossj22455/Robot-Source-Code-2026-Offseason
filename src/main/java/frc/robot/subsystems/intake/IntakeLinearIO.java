@@ -36,4 +36,7 @@ public interface IntakeLinearIO {
 
   /** Zeros the encoder at the current position (called when homing finds the hardstop). */
   public default void zeroPosition() {}
+
+  /** Sets the idle mode: brake when true, coast when false. */
+  public default void setBrakeMode(boolean brake) {}
 }

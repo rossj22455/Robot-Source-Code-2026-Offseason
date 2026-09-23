@@ -51,6 +51,9 @@ public class IntakeLinearIOSparkMaxSim extends IntakeLinearIOSparkMax {
           GEARBOX);
 
   public IntakeLinearIOSparkMaxSim() {
+    // The physics model below is already positive = extend, so the real motor's inversion is off
+    super(false);
+
     // Start partially extended; the SparkMax encoder still reads 0 (unknown offset, like boot)
     physics.setState(SIM_BOOT_OFFSET_METERS / METERS_PER_OUTPUT_ROTATION * 2.0 * Math.PI, 0.0);
 

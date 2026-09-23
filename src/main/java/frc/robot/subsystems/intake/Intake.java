@@ -63,6 +63,8 @@ public class Intake extends SubsystemBase {
   // stays out until explicitly retracted (or restored by the aggregation sweep).
   private double goalMeters = LINEAR_RETRACTED_POSITION_METERS;
   private int appliedCurrentLimitAmps = LINEAR_NORMAL_CURRENT_LIMIT_AMPS;
+  // Last idle mode sent to the slide motor (null = not yet sent, so the first loop always applies)
+  private Boolean appliedBrakeMode = null;
   private boolean homingFailed = false;
   // State to fall back to if a homing attempt is aborted (home button released early), so an
   // aborted re-home leaves an already-homed slide homed instead of dropping it to UNHOMED
@@ -128,6 +130,15 @@ public class Intake extends SubsystemBase {
     notHomedAlert.set(linearState == LinearState.UNHOMED && !homingFailed);
 
     boolean enabled = DriverStation.isEnabled();
+
+    // Brake while enabled so the slide holds; coast while disabled so it can be pushed by hand,
+    // and coast while homing so the slide rolls freely into the hardstop. Sent only on change
+    // (async config call).
+    boolean wantBrake = enabled && linearState != LinearState.HOMING;
+    if (appliedBrakeMode == null || appliedBrakeMode != wantBrake) {
+      linearIO.setBrakeMode(wantBrake);
+      appliedBrakeMode = wantBrake;
+    }
 
     switch (linearState) {
       case UNHOMED -> {

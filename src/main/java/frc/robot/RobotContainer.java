@@ -17,6 +17,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandPS5Controller;
@@ -43,7 +44,6 @@ import frc.robot.subsystems.intake.IntakeLinearIO;
 import frc.robot.subsystems.intake.IntakeLinearIOSparkMax;
 import frc.robot.subsystems.intake.IntakeLinearIOSparkMaxSim;
 import frc.robot.subsystems.intake.IntakeRollerIO;
-import frc.robot.subsystems.intake.IntakeRollerIOSparkMax;
 import frc.robot.subsystems.intake.IntakeRollerIOSparkMaxSim;
 import frc.robot.subsystems.shooter.Shooter;
 import frc.robot.subsystems.shooter.ShooterDrumIO;
@@ -54,7 +54,6 @@ import frc.robot.subsystems.shooter.ShooterKickerIOSparkMax;
 import frc.robot.subsystems.shooter.ShooterKickerIOSparkMaxSim;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionIO;
-import frc.robot.subsystems.vision.VisionIOPhotonVision;
 import frc.robot.subsystems.vision.VisionIOPhotonVisionSim;
 import frc.robot.util.RobotVisualizer;
 import frc.robot.util.ShotOnMoveSolver;
@@ -62,6 +61,7 @@ import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.Arena2026Rebuilt;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
+import org.littletonrobotics.junction.networktables.LoggedNetworkNumber;
 
 /**
  * This class is where the bulk of the robot should be declared. Since Command-based is a
@@ -94,6 +94,10 @@ public class RobotContainer {
   // collecting for a moment before it sweeps balls in (see shootCommand)
   private final Timer shootTimer = new Timer();
 
+  // TESTING: drum RPM for the dashboard "Test Shot (No Aim)" button (editable on the dashboard)
+  private final LoggedNetworkNumber testShotRpm =
+      new LoggedNetworkNumber("/SmartDashboard/Test Shot/RPM", 1900.0);
+
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
     switch (Constants.currentMode) {
@@ -105,15 +109,26 @@ public class RobotContainer {
                 new ModuleIOTalonFX(TunerConstants.FrontRight),
                 new ModuleIOTalonFX(TunerConstants.BackLeft),
                 new ModuleIOTalonFX(TunerConstants.BackRight));
-        vision =
-            new Vision(
-                drive::addVisionMeasurement,
-                drive::getPose,
-                // Single camera for now (centerline, shooter-facing). Vision accepts any number of
-                // VisionIO instances — add camera1/camera2 back here when more cameras are mounted.
-                new VisionIOPhotonVision(camera0Name, robotToCamera0, cameraRoles[0]));
+        // TEMP DISABLED: PhotonVision not installed yet. Zero cameras = no errors/alerts.
+        vision = new Vision(drive::addVisionMeasurement, drive::getPose);
+        // vision =
+        //     new Vision(
+        //         drive::addVisionMeasurement,
+        //         drive::getPose,
+        //         new VisionIOPhotonVision(camera0Name, robotToCamera0, cameraRoles[0]));
 
-        intake = new Intake(new IntakeLinearIOSparkMax(), new IntakeRollerIOSparkMax());
+        // TEMP DISABLED: intake rollers not installed yet. No-op stub reports "connected" so the
+        // disconnected alert stays quiet.
+        intake =
+            new Intake(
+                new IntakeLinearIOSparkMax(),
+                new IntakeRollerIO() {
+                  @Override
+                  public void updateInputs(IntakeRollerIOInputs inputs) {
+                    inputs.connected = true;
+                  }
+                });
+        // intake = new Intake(new IntakeLinearIOSparkMax(), new IntakeRollerIOSparkMax());
         shooter =
             new Shooter(
                 new ShooterDrumIOTalonFX(),
@@ -344,6 +359,30 @@ public class RobotContainer {
 
     // Unjam while held: reverse the indexer belt and kicker together (always permitted)
     controller.R1().whileTrue(unjamCommand());
+
+    configureDashboardButtons();
+  }
+
+  /**
+   * Dashboard buttons (Elastic / SmartDashboard) so mechanisms can be run without a controller.
+   * Each shows up under "Commands/..." as a toggle button: click to start, click again to cancel.
+   * Commands only run while the robot is enabled (except the heading reset).
+   */
+  private void configureDashboardButtons() {
+    SmartDashboard.putData("Commands/Intake Home", intake.homeCommand());
+    SmartDashboard.putData("Commands/Intake Deploy + Rollers", intake.intakeCommand());
+    SmartDashboard.putData("Commands/Intake Retract", intake.retractCommand());
+    SmartDashboard.putData("Commands/Intake Fast Retract", intake.fastRetractCommand());
+    SmartDashboard.putData("Commands/Aim + Shoot", aimAndShootCommand());
+    SmartDashboard.putData("Commands/Unjam", unjamCommand());
+    SmartDashboard.putData("Commands/Test Shot (No Aim)", testShotCommand());
+    SmartDashboard.putData("Commands/Drive X-Lock", Commands.runOnce(drive::stopWithX, drive));
+    SmartDashboard.putData(
+        "Commands/Reset Heading",
+        Commands.runOnce(
+                () -> drive.setPose(new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
+                drive)
+            .ignoringDisable(true));
   }
 
   /**
@@ -454,6 +493,28 @@ public class RobotContainer {
   }
 
   /**
+   * TESTING: fires at the RPM typed into the dashboard ("Test Shot/RPM") without rotating the
+   * robot. The drum still has to reach that RPM before the kicker and indexer feed. The RPM is
+   * re-read every loop, so it can be changed mid-shot.
+   */
+  private Command testShotCommand() {
+    return Commands.runEnd(
+            () -> {
+              shooter.startManualSpinUp(testShotRpm.get());
+              shooter.runKickerFeed(); // No-op until the drum is at the test RPM
+              indexer.feed(); // Same interlock
+            },
+            () -> {
+              shooter.stopShooter();
+              shooter.stopKicker();
+              indexer.stop();
+            },
+            shooter,
+            indexer)
+        .withName("TestShot");
+  }
+
+  /**
    * Clears a chute jam while held: the kicker reverses at a moderate speed and the indexer belt
    * reverses more gently to back the jam out, while the drum spins forward a little faster than
    * idle to fling clear anything stuck at the drum.
@@ -480,6 +541,14 @@ public class RobotContainer {
    */
   public Command getAutonomousCommand() {
     return autoChooser.get();
+  }
+
+  /**
+   * Command run when test mode is enabled: stall-homes the intake slide. Ends once homed; disabling
+   * aborts it cleanly.
+   */
+  public Command getTestCommand() {
+    return intake.homeCommand();
   }
 
   /**

@@ -32,9 +32,21 @@ public class IntakeLinearIOSparkMax implements IntakeLinearIO {
   // runtime, so other settings are never touched after the initial blocking configuration.
   private final SparkMaxConfig currentLimitConfig = new SparkMaxConfig();
 
+  // Same idea for the idle mode, which flips between brake (enabled) and coast (disabled)
+  private final SparkMaxConfig idleModeConfig = new SparkMaxConfig();
+
   public IntakeLinearIOSparkMax() {
+    this(LINEAR_MOTOR_INVERTED);
+  }
+
+  /**
+   * @param inverted flips both the motor output and the encoder so positive always means "extend".
+   *     The sim subclass passes false because its physics model is already built positive-extend.
+   */
+  protected IntakeLinearIOSparkMax(boolean inverted) {
     var config = new SparkMaxConfig();
     config
+        .inverted(inverted)
         .idleMode(IdleMode.kBrake)
         .smartCurrentLimit(LINEAR_NORMAL_CURRENT_LIMIT_AMPS)
         .voltageCompensation(12.0);
@@ -71,5 +83,14 @@ public class IntakeLinearIOSparkMax implements IntakeLinearIO {
   @Override
   public void zeroPosition() {
     encoder.setPosition(0.0);
+  }
+
+  @Override
+  public void setBrakeMode(boolean brake) {
+    // Async so the 20ms loop is never blocked; called only on enable/disable transitions. Not
+    // persisted, so the flashed default (brake) is what the motor boots with.
+    idleModeConfig.idleMode(brake ? IdleMode.kBrake : IdleMode.kCoast);
+    motor.configureAsync(
+        idleModeConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
   }
 }
