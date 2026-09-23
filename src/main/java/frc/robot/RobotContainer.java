@@ -54,6 +54,7 @@ import frc.robot.subsystems.shooter.ShooterKickerIOSparkMax;
 import frc.robot.subsystems.shooter.ShooterKickerIOSparkMaxSim;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionIO;
+import frc.robot.subsystems.vision.VisionIOPhotonVision;
 import frc.robot.subsystems.vision.VisionIOPhotonVisionSim;
 import frc.robot.util.RobotVisualizer;
 import frc.robot.util.ShotOnMoveSolver;
@@ -109,13 +110,13 @@ public class RobotContainer {
                 new ModuleIOTalonFX(TunerConstants.FrontRight),
                 new ModuleIOTalonFX(TunerConstants.BackLeft),
                 new ModuleIOTalonFX(TunerConstants.BackRight));
-        // TEMP DISABLED: PhotonVision not installed yet. Zero cameras = no errors/alerts.
-        vision = new Vision(drive::addVisionMeasurement, drive::getPose);
-        // vision =
-        //     new Vision(
-        //         drive::addVisionMeasurement,
-        //         drive::getPose,
-        //         new VisionIOPhotonVision(camera0Name, robotToCamera0, cameraRoles[0]));
+        // Single centerline camera for now (see VisionConstants). Vision accepts any number of
+        // VisionIO instances — add camera1/camera2 here when more cameras are mounted.
+        vision =
+            new Vision(
+                drive::addVisionMeasurement,
+                drive::getPose,
+                new VisionIOPhotonVision(camera0Name, robotToCamera0, cameraRoles[0]));
 
         // TEMP DISABLED: intake rollers not installed yet. No-op stub reports "connected" so the
         // disconnected alert stays quiet.

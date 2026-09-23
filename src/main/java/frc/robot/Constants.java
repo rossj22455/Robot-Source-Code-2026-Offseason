@@ -218,10 +218,15 @@ public final class Constants {
 
     // Kicker (NEO through a 3:1 gearbox, basic voltage control) — PLACEHOLDER speeds
     public static final double KICKER_GEAR_RATIO = 3.0;
-    public static final double KICKER_FEED_VOLTS = 6.0; // PLACEHOLDER — tune on real mechanism
+    // Feed volts drive BPS: the harder the kicker shoves balls into the drum, the faster the
+    // volley. Raised 6 -> 10 to push throughput; can go toward 12 if the drum keeps balls on
+    // target. Watch Shooter/Drum/VelocityErrorRpm — if the per-ball sag grows past the drum's
+    // recovery, shots scatter (raise DRUM_STATOR_CURRENT_LIMIT_AMPS or back this down).
+    public static final double KICKER_FEED_VOLTS = 10.0; // Tune on real mechanism
     public static final double KICKER_REVERSE_VOLTS =
         -4.0; // Moderate reverse for unjam; PLACEHOLDER
-    public static final int KICKER_CURRENT_LIMIT_AMPS = 30;
+    // Raised 30 -> 40 so the NEO doesn't current-clip at the higher feed voltage
+    public static final int KICKER_CURRENT_LIMIT_AMPS = 40;
 
     // Chute unjam: spin the drum FORWARD a little faster than idle to fling a ball stuck in the
     // chute clear (while the kicker/indexer back the jam out). PLACEHOLDER — a touch above idle.
@@ -269,8 +274,10 @@ public final class Constants {
     public static final double INDEXER_STATOR_CURRENT_LIMIT_AMPS = 40.0;
     public static final double INDEXER_SUPPLY_CURRENT_LIMIT_AMPS = 30.0;
 
-    // Belt speeds — PLACEHOLDER starting values: tune on the real mechanism
-    public static final double INDEXER_FEED_VOLTS = 6.0;
+    // Belt speeds — tune on the real mechanism. Raised 6 -> 10 to keep the belt supplying balls to
+    // the kicker at least as fast as the kicker fires them (a slow belt would starve the kicker and
+    // cap BPS regardless of kicker speed). Keep at or above the kicker's effective feed rate.
+    public static final double INDEXER_FEED_VOLTS = 10.0;
     // Reverse (unjam) — deliberately gentler than the kicker's reverse (-4.0) so the belt eases the
     // jam back rather than yanking it. PLACEHOLDER.
     public static final double INDEXER_REVERSE_VOLTS = -2.5;

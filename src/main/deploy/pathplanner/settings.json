@@ -4,8 +4,9 @@
   "holonomicMode": true,
   "pathFolders": [
     "Bump",
-    "supsecret",
-    "noblup"
+    "robocon",
+    "noblup",
+    "supsecret"
   ],
   "autoFolders": [],
   "defaultMaxVel": 4.25,

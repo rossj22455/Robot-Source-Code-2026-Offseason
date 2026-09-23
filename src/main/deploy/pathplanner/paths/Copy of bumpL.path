@@ -92,6 +92,10 @@
     {
       "waypointRelativePos": 3.1006289308176114,
       "rotationDegrees": -104.0
+    },
+    {
+      "waypointRelativePos": 3.9182389937106885,
+      "rotationDegrees": -104.0
     }
   ],
   "constraintZones": [
@@ -124,7 +128,7 @@
     "rotation": -51.04598478907765
   },
   "reversed": false,
-  "folder": "Bump",
+  "folder": "robocon",
   "idealStartingState": {
     "velocity": 0,
     "rotation": 90.0
