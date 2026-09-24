@@ -9,6 +9,7 @@ package frc.robot.subsystems.vision;
 
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation3d;
 import org.littletonrobotics.junction.AutoLog;
 
 public interface VisionIO {
@@ -18,6 +19,7 @@ public interface VisionIO {
     public TargetObservation latestTargetObservation =
         new TargetObservation(false, 0.0, Rotation2d.kZero, Rotation2d.kZero, 0.0);
     public PoseObservation[] poseObservations = new PoseObservation[0];
+    public SingleTagObservation[] singleTagObservations = new SingleTagObservation[0];
     public int[] tagIds = new int[0];
   }
 
@@ -28,9 +30,17 @@ public interface VisionIO {
   public static record TargetObservation(
       boolean hasTarget, double timestamp, Rotation2d tx, Rotation2d ty, double area) {}
 
-  /** Represents a single robot pose sample used for pose estimation. */
+  /** Represents a multitag robot pose sample used for pose estimation. */
   public static record PoseObservation(
       double timestamp, Pose3d pose, double ambiguity, int tagCount, double averageTagDistance) {}
+
+  /**
+   * Raw measurement of a single AprilTag, used for the gyro-assisted pose solve in {@link Vision}.
+   * {@code cameraToTag} is the tag center's position in the camera frame (x forward, y left, z up).
+   * Its direction and length are robust even when the tag's orientation is ambiguous.
+   */
+  public static record SingleTagObservation(
+      double timestamp, int tagId, Translation3d cameraToTag, double ambiguity) {}
 
   public default void updateInputs(VisionIOInputs inputs) {}
 }

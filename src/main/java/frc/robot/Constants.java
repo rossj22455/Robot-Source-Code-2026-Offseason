@@ -43,8 +43,11 @@ public final class Constants {
   public static final class Intake {
     // CAN IDs — PLACEHOLDER assignments, but note the legal FRC CAN device ID range is 0-62
     public static final int LINEAR_MOTOR_ID = 33;
-    public static final int ROLLER_MASTER_ID = 45;
+    public static final int ROLLER_MASTER_ID = 35;
     public static final int ROLLER_FOLLOWER_ID = 46;
+    // Only the master roller motor is installed right now. Set true once the second NEO is mounted
+    // (and ROLLER_FOLLOWER_ID is set to its real ID) to bring back the inverted hardware follower.
+    public static final boolean ROLLER_FOLLOWER_INSTALLED = false;
 
     // The slide motor's raw direction is negative = extend (measured: fully extended read about
     // -0.280 m). Inverting it makes positive = extend everywhere in code, matching the setpoints.
@@ -63,7 +66,7 @@ public final class Constants {
     // 11.498946 in hardstop-to-hardstop (from CAD). The working setpoints sit slightly inside the
     // hardstops so position control never slams the mechanical limits.
     public static final double LINEAR_MIN_POSITION_METERS = 0.0;
-    public static final double LINEAR_MAX_POSITION_METERS = Units.inchesToMeters(11.498946);
+    public static final double LINEAR_MAX_POSITION_METERS = 0.3211468756198883;
     public static final double LINEAR_RETRACTED_POSITION_METERS = 0.003;
     public static final double LINEAR_EXTENDED_POSITION_METERS = LINEAR_MAX_POSITION_METERS - 0.005;
 
@@ -200,10 +203,11 @@ public final class Constants {
     // the longest table distance (4.3 m) — 5 deg leaves margin. PLACEHOLDER — tune on the field.
     public static final double AIM_TOLERANCE_DEG = 5.0;
 
-    // Vision-loss fallback: vision cannot be relied on, so losing it must never disable the
-    // shooter. With no recent vision correction the pose-derived distance is untrustworthy, so the
-    // drum falls back to this fixed setpoint and the driver ranges by eye. PLACEHOLDER — pick the
-    // RPM for the distance you most commonly shoot from.
+    // TELEOP vision-loss fallback: vision cannot be relied on, so losing it must never disable the
+    // shooter. With no recent vision correction the pose-derived distance may have drifted, so the
+    // drum falls back to this fixed setpoint and the driver ranges by eye. (Autonomous never uses
+    // this — it keeps ranging off the odometry pose.) PLACEHOLDER — pick the RPM for the distance
+    // you most commonly shoot from.
     public static final double VISION_FALLBACK_RPM = 1900.0;
 
     // Neutral-zone funneling: fixed lob RPM toward the alliance corner (distance-to-corner varies
@@ -222,7 +226,7 @@ public final class Constants {
     // volley. Raised 6 -> 10 to push throughput; can go toward 12 if the drum keeps balls on
     // target. Watch Shooter/Drum/VelocityErrorRpm — if the per-ball sag grows past the drum's
     // recovery, shots scatter (raise DRUM_STATOR_CURRENT_LIMIT_AMPS or back this down).
-    public static final double KICKER_FEED_VOLTS = 10.0; // Tune on real mechanism
+    public static final double KICKER_FEED_VOLTS = 8.0; // Tune on real mechanism
     public static final double KICKER_REVERSE_VOLTS =
         -4.0; // Moderate reverse for unjam; PLACEHOLDER
     // Raised 30 -> 40 so the NEO doesn't current-clip at the higher feed voltage
@@ -277,7 +281,7 @@ public final class Constants {
     // Belt speeds — tune on the real mechanism. Raised 6 -> 10 to keep the belt supplying balls to
     // the kicker at least as fast as the kicker fires them (a slow belt would starve the kicker and
     // cap BPS regardless of kicker speed). Keep at or above the kicker's effective feed rate.
-    public static final double INDEXER_FEED_VOLTS = 10.0;
+    public static final double INDEXER_FEED_VOLTS = 8.0;
     // Reverse (unjam) — deliberately gentler than the kicker's reverse (-4.0) so the belt eases the
     // jam back rather than yanking it. PLACEHOLDER.
     public static final double INDEXER_REVERSE_VOLTS = -2.5;

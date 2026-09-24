@@ -145,13 +145,22 @@ public class Shooter extends SubsystemBase {
     // 1. FUNNELING (in the neutral zone, hub shots illegal): fixed corner-lob RPM,
     //    vision-independent.
     // 2. HUB_VISION: distance-mapped RPM from the vision-corrected pose.
-    // 3. HUB_FALLBACK (vision stale): fixed fallback RPM; the driver ranges by eye.
+    // 3. HUB_ODOMETRY (autonomous, vision stale): still the pose distance. In auto the pose was
+    //    set at the start and snapped to vision after the bump, and a few seconds of odometry
+    //    stays accurate, so it beats any fixed RPM — auto must never skip or botch a shot just
+    //    because the camera briefly lost the tags.
+    // 4. HUB_FALLBACK (teleop, vision stale): fixed fallback RPM; the driver ranges by eye.
     boolean funneling = funnelModeSupplier.getAsBoolean();
     boolean visionValid = distanceValidSupplier.getAsBoolean();
+    boolean useOdometryDistance = !visionValid && DriverStation.isAutonomous();
     String targetingMode =
         manual
             ? "MANUAL_TEST"
-            : (funneling ? "FUNNELING" : (visionValid ? "HUB_VISION" : "HUB_FALLBACK"));
+            : funneling
+                ? "FUNNELING"
+                : visionValid
+                    ? "HUB_VISION"
+                    : (useOdometryDistance ? "HUB_ODOMETRY" : "HUB_FALLBACK");
     if (unjamRequested) {
       // Chute unjam (highest priority): spin the drum FORWARD a little faster than idle to fling
       // a ball stuck in the chute clear, and reverse the kicker at a moderate speed to back the
@@ -164,7 +173,7 @@ public class Shooter extends SubsystemBase {
         targetRpm = manualRpm;
       } else if (funneling) {
         targetRpm = FUNNEL_RPM;
-      } else if (visionValid) {
+      } else if (visionValid || useOdometryDistance) {
         targetRpm = rpmMap.get(hubDistanceSupplier.getAsDouble());
       } else {
         targetRpm = VISION_FALLBACK_RPM;
@@ -185,7 +194,8 @@ public class Shooter extends SubsystemBase {
       //   drumIO.stop();
       // }
     }
-    visionFallbackAlert.set(spinUpRequested && !manual && !funneling && !visionValid);
+    visionFallbackAlert.set(
+        spinUpRequested && !manual && !funneling && !visionValid && !useOdometryDistance);
 
     // Anti-jamming interlock: ready only when the drum has stabilized within a razor-thin
     // tolerance of the target RPM (debounced against momentary crossings) AND the robot is

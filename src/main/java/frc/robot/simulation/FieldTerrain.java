@@ -29,9 +29,7 @@ public final class FieldTerrain {
   private static final double RAMP_OUTER_Y = Units.inchesToMeters(108.5);
   private static final double RAMP_LENGTH_METERS = RAMP_OUTER_Y - HUB_HALF_LENGTH_Y; // 85 in
 
-  // PLACEHOLDER ramp rise over the 2.16 m ramp length (~5.3 deg slope). The tilt threshold is
-  // 10 deg, so real-ish ramps do NOT trigger recovery; raise above ~0.38 m to force tilt events
-  // when testing the recovery logic.
+  // PLACEHOLDER ramp rise over the 2.16 m ramp length (~5.3 deg slope).
   public static final double RAMP_HEIGHT_METERS = 0.20;
 
   private FieldTerrain() {}

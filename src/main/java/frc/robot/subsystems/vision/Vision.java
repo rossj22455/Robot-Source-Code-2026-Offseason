@@ -16,6 +16,7 @@ import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.Alert;
@@ -26,13 +27,15 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 import org.littletonrobotics.junction.Logger;
 
 /**
- * Coordinates the three-camera PhotonVision array: feeds accepted pose observations to the drive
- * pose estimator, exposes target angles for game-piece funneling, and provides the hub distance
- * used by the shooter's RPM interpolation.
+ * Coordinates the PhotonVision cameras: feeds accepted pose observations to the drive pose
+ * estimator (multitag solves correct X/Y/heading; single tags are solved from range + angle + gyro
+ * heading and correct X/Y only), exposes target angles for game-piece funneling, and provides the
+ * hub distance used by the shooter's RPM interpolation.
  *
  * <p>Fault tolerance: a disconnected camera reports {@code connected = false} and produces no
  * observations, so the pose estimator silently degrades to pure wheel odometry. No special-case
@@ -41,15 +44,26 @@ import org.littletonrobotics.junction.Logger;
 public class Vision extends SubsystemBase {
   private final VisionConsumer consumer;
   private final Supplier<Pose2d> robotPoseSupplier;
+  private final HeadingSampler headingSampler;
   private final VisionIO[] io;
   private final VisionIOInputsAutoLogged[] inputs;
   private final Alert[] disconnectedAlerts;
 
   private double lastAcceptedPoseTimestamp = Double.NEGATIVE_INFINITY;
 
-  public Vision(VisionConsumer consumer, Supplier<Pose2d> robotPoseSupplier, VisionIO... io) {
+  // Indexed to match the IO array order in RobotContainer
+  private static final Transform3d[] robotToCameraTransforms = {
+    robotToCamera0, robotToCamera1, robotToCamera2
+  };
+
+  public Vision(
+      VisionConsumer consumer,
+      Supplier<Pose2d> robotPoseSupplier,
+      HeadingSampler headingSampler,
+      VisionIO... io) {
     this.consumer = consumer;
     this.robotPoseSupplier = robotPoseSupplier;
+    this.headingSampler = headingSampler;
     this.io = io;
 
     // Initialize inputs
@@ -131,7 +145,6 @@ public class Vision extends SubsystemBase {
     // Log camera poses (robot pose + mounting transform) so they move with the robot in
     // AdvantageScope
     Pose3d robotPose = new Pose3d(robotPoseSupplier.get());
-    Transform3d[] robotToCameraTransforms = {robotToCamera0, robotToCamera1, robotToCamera2};
     for (int i = 0; i < io.length && i < robotToCameraTransforms.length; i++) {
       Logger.recordOutput(
           "Vision/Camera" + i + "/Pose", robotPose.transformBy(robotToCameraTransforms[i]));
@@ -212,6 +225,53 @@ public class Vision extends SubsystemBase {
               VecBuilder.fill(linearStdDev, linearStdDev, angularStdDev));
           lastAcceptedPoseTimestamp = Timer.getTimestamp();
         }
+
+        // Single-tag observations: solved from the camera-to-tag vector and the gyro heading (see
+        // solveSingleTagPose). They correct X/Y only — heading stays with the gyro, which is far
+        // more precise than a single tag's orientation.
+        for (var observation : inputs[cameraIndex].singleTagObservations) {
+          var tagPose = aprilTagLayout.getTagPose(observation.tagId());
+          var heading = headingSampler.sample(observation.timestamp());
+          if (tagPose.isEmpty()
+              || heading.isEmpty() // Heading not anchored to the field yet
+              || cameraIndex >= robotToCameraTransforms.length
+              || !Double.isFinite(observation.cameraToTag().getNorm())
+              || observation.cameraToTag().getNorm() > maxSingleTagDistance) {
+            continue;
+          }
+
+          Pose2d pose =
+              solveSingleTagPose(
+                  tagPose.get(),
+                  robotToCameraTransforms[cameraIndex],
+                  heading.get(),
+                  observation.cameraToTag());
+
+          // Must be within the field boundaries
+          boolean rejectPose =
+              pose.getX() < 0.0
+                  || pose.getX() > aprilTagLayout.getFieldLength()
+                  || pose.getY() < 0.0
+                  || pose.getY() > aprilTagLayout.getFieldWidth();
+
+          robotPoses.add(new Pose3d(pose));
+          if (rejectPose) {
+            robotPosesRejected.add(new Pose3d(pose));
+            continue;
+          }
+          robotPosesAccepted.add(new Pose3d(pose));
+
+          double linearStdDev =
+              linearStdDevBaseline * Math.pow(observation.cameraToTag().getNorm(), 2.0);
+          if (cameraIndex < cameraStdDevFactors.length) {
+            linearStdDev *= cameraStdDevFactors[cameraIndex];
+          }
+          consumer.accept(
+              pose,
+              observation.timestamp(),
+              VecBuilder.fill(linearStdDev, linearStdDev, Double.POSITIVE_INFINITY));
+          lastAcceptedPoseTimestamp = Timer.getTimestamp();
+        }
       }
 
       // Log camera data
@@ -240,6 +300,43 @@ public class Vision extends SubsystemBase {
         "Vision/Summary/RobotPosesRejected", allRobotPosesRejected.toArray(new Pose3d[0]));
     Logger.recordOutput("Vision/HubDistanceMeters", getHubDistanceMeters());
     Logger.recordOutput("Vision/HasHubPoseConfidence", hasHubPoseConfidence());
+  }
+
+  /**
+   * Gyro-assisted single-tag pose solve (same idea as PhotonVision's PNP_DISTANCE_TRIG_SOLVE). Uses
+   * only where the tag center is relative to the camera, plus the robot heading, so it cannot
+   * suffer the orientation "flip" ambiguity of a single-tag PnP solve — the robust choice for a
+   * single-camera robot.
+   *
+   * @param tagPose Field pose of the observed tag.
+   * @param robotToCamera Camera mounting transform.
+   * @param robotHeading Field-relative robot heading at the observation timestamp.
+   * @param cameraToTagInCameraFrame Tag center in the camera frame (x forward, y left, z up).
+   */
+  public static Pose2d solveSingleTagPose(
+      Pose3d tagPose,
+      Transform3d robotToCamera,
+      Rotation2d robotHeading,
+      Translation3d cameraToTagInCameraFrame) {
+    // Rotate the camera-to-tag vector into the robot frame (this also removes the camera's
+    // mounting pitch, so the floor-plane component is correct)
+    Translation2d cameraToTag =
+        cameraToTagInCameraFrame.rotateBy(robotToCamera.getRotation()).toTranslation2d();
+
+    // Walk back from the tag to the camera, then from the camera to the robot center, in the
+    // field frame
+    Translation2d fieldToCamera =
+        tagPose.toPose2d().getTranslation().minus(cameraToTag.rotateBy(robotHeading));
+    Translation2d fieldToRobot =
+        fieldToCamera.minus(
+            robotToCamera.getTranslation().toTranslation2d().rotateBy(robotHeading));
+    return new Pose2d(fieldToRobot, robotHeading);
+  }
+
+  /** Returns the field-relative robot heading at a past timestamp, or empty if unknown. */
+  @FunctionalInterface
+  public static interface HeadingSampler {
+    public Optional<Rotation2d> sample(double timestampSeconds);
   }
 
   @FunctionalInterface

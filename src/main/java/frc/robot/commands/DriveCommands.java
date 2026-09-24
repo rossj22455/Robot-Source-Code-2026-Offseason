@@ -23,6 +23,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.vision.VisionConstants;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.LinkedList;
@@ -163,6 +164,20 @@ public class DriveCommands {
 
         // Reset PID controller when command starts
         .beforeStarting(() -> angleController.reset(drive.getRotation().getRadians()));
+  }
+
+  /**
+   * Snaps the pose estimate to the next good vision measurement (see {@link
+   * Drive#requestVisionSnap()}), ending once it has, or after the timeout if the camera sees no
+   * usable tag. Does NOT require the drive, so it can run as a PathPlanner event marker without
+   * interrupting path following.
+   */
+  public static Command snapPoseToVision(Drive drive) {
+    return Commands.runOnce(drive::requestVisionSnap)
+        .andThen(Commands.waitUntil(() -> !drive.isVisionSnapPending()))
+        .withTimeout(VisionConstants.visionSnapTimeoutSecs)
+        .finallyDo(drive::cancelVisionSnap)
+        .withName("SnapPoseToVision");
   }
 
   /**

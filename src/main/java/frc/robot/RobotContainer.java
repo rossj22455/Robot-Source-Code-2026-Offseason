@@ -24,7 +24,6 @@ import edu.wpi.first.wpilibj2.command.button.CommandPS5Controller;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
-import frc.robot.commands.TiltRecoveryCommands;
 import frc.robot.generated.TunerConstants;
 import frc.robot.simulation.SimulationManager;
 import frc.robot.simulation.TerrainAwareSwerveDriveSimulation;
@@ -44,6 +43,7 @@ import frc.robot.subsystems.intake.IntakeLinearIO;
 import frc.robot.subsystems.intake.IntakeLinearIOSparkMax;
 import frc.robot.subsystems.intake.IntakeLinearIOSparkMaxSim;
 import frc.robot.subsystems.intake.IntakeRollerIO;
+import frc.robot.subsystems.intake.IntakeRollerIOSparkMax;
 import frc.robot.subsystems.intake.IntakeRollerIOSparkMaxSim;
 import frc.robot.subsystems.shooter.Shooter;
 import frc.robot.subsystems.shooter.ShooterDrumIO;
@@ -58,6 +58,7 @@ import frc.robot.subsystems.vision.VisionIOPhotonVision;
 import frc.robot.subsystems.vision.VisionIOPhotonVisionSim;
 import frc.robot.util.RobotVisualizer;
 import frc.robot.util.ShotOnMoveSolver;
+import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.Arena2026Rebuilt;
 import org.littletonrobotics.junction.Logger;
@@ -116,20 +117,11 @@ public class RobotContainer {
             new Vision(
                 drive::addVisionMeasurement,
                 drive::getPose,
+                drive::sampleHeadingAt,
                 new VisionIOPhotonVision(camera0Name, robotToCamera0, cameraRoles[0]));
 
-        // TEMP DISABLED: intake rollers not installed yet. No-op stub reports "connected" so the
-        // disconnected alert stays quiet.
-        intake =
-            new Intake(
-                new IntakeLinearIOSparkMax(),
-                new IntakeRollerIO() {
-                  @Override
-                  public void updateInputs(IntakeRollerIOInputs inputs) {
-                    inputs.connected = true;
-                  }
-                });
-        // intake = new Intake(new IntakeLinearIOSparkMax(), new IntakeRollerIOSparkMax());
+        // Rollers: single NEO on ID 35 for now (see Constants.Intake.ROLLER_FOLLOWER_INSTALLED)
+        intake = new Intake(new IntakeLinearIOSparkMax(), new IntakeRollerIOSparkMax());
         shooter =
             new Shooter(
                 new ShooterDrumIOTalonFX(),
@@ -176,6 +168,7 @@ public class RobotContainer {
             new Vision(
                 drive::addVisionMeasurement,
                 drive::getPose,
+                drive::sampleHeadingAt,
                 // Single camera for now (centerline, shooter-facing) — mirrors the REAL wiring.
                 new VisionIOPhotonVisionSim(
                     camera0Name,
@@ -229,9 +222,8 @@ public class RobotContainer {
             new Vision(
                 drive::addVisionMeasurement,
                 drive::getPose,
-                new VisionIO() {},
-                new VisionIO() {},
-                new VisionIO() {});
+                drive::sampleHeadingAt,
+                new VisionIO() {}); // One camera, matching the REAL wiring (log replay)
 
         intake = new Intake(new IntakeLinearIO() {}, new IntakeRollerIO() {});
         shooter =
@@ -257,10 +249,13 @@ public class RobotContainer {
             shooter::getKickerVelocityRpm);
 
     // Named commands for PathPlanner autos — MUST be registered before building the chooser.
-    // "Shoot" aims (sticks read zero in auto, so the robot rotates in place onto the target) and
-    // fires volleys until the timeout. "IntakeRun" deploys + runs rollers and is meant for PP
+    // "Shoot" aims (zero translation, so the robot rotates in place onto the target) and fires
+    // volleys until the timeout. It requires the drive, so use it as a path STEP at a stop point —
+    // as an event marker it would interrupt the path being followed. "IntakeRun" deploys + runs
+    // rollers and is meant for PP
     // event zones or deadline groups (it never ends on its own).
-    NamedCommands.registerCommand("Shoot", aimAndShootCommand().withTimeout(4.0));
+    NamedCommands.registerCommand(
+        "Shoot", aimAndShootCommand(() -> 0.0, () -> 0.0).withTimeout(4.0));
     NamedCommands.registerCommand("IntakeRun", intake.intakeCommand());
     NamedCommands.registerCommand("IntakeStop", Commands.runOnce(intake::stopRollers, intake));
     NamedCommands.registerCommand("IntakeRetract", intake.retractCommand());
@@ -268,15 +263,12 @@ public class RobotContainer {
     // stops it) — the drum reaches the mapped RPM during travel so Shoot only needs aim+staging
     NamedCommands.registerCommand("SpinUp", Commands.runOnce(shooter::startSpinUp, shooter));
     NamedCommands.registerCommand("ShooterStop", Commands.runOnce(shooter::stopShooter, shooter));
+    // Place right after the bump (event marker): resets the pose to the next good vision fix,
+    // erasing the odometry error from wheel slip on the bump. Doesn't require the drive.
+    NamedCommands.registerCommand("SnapPoseToVision", DriveCommands.snapPoseToVision(drive));
 
     // Set up auto routines
     autoChooser = new LoggedDashboardChooser<>("Auto Choices", AutoBuilder.buildAutoChooser());
-
-    // Example fault-tolerant auto: every segment monitored for tilt with dynamic OTF recovery.
-    // Add real routines by listing their PathPlanner path files in execution order.
-    autoChooser.addOption(
-        "Example Path (Tilt Recovery)",
-        TiltRecoveryCommands.recoverableAuto(drive, "Example Path"));
 
     // Set up SysId routines
     autoChooser.addOption(
@@ -356,7 +348,9 @@ public class RobotContainer {
     // on the sticks) while the drum spins to the vision-mapped RPM; the kicker and indexer feed
     // automatically the moment isReadyToShoot() is satisfied (at-speed + fresh vision + aimed —
     // re-evaluated every loop inside the subsystems)
-    controller.R2().whileTrue(aimAndShootCommand());
+    controller
+        .R2()
+        .whileTrue(aimAndShootCommand(() -> -controller.getLeftY(), () -> -controller.getLeftX()));
 
     // Unjam while held: reverse the indexer belt and kicker together (always permitted)
     controller.R1().whileTrue(unjamCommand());
@@ -374,7 +368,9 @@ public class RobotContainer {
     SmartDashboard.putData("Commands/Intake Deploy + Rollers", intake.intakeCommand());
     SmartDashboard.putData("Commands/Intake Retract", intake.retractCommand());
     SmartDashboard.putData("Commands/Intake Fast Retract", intake.fastRetractCommand());
-    SmartDashboard.putData("Commands/Aim + Shoot", aimAndShootCommand());
+    SmartDashboard.putData(
+        "Commands/Aim + Shoot",
+        aimAndShootCommand(() -> -controller.getLeftY(), () -> -controller.getLeftX()));
     SmartDashboard.putData("Commands/Unjam", unjamCommand());
     SmartDashboard.putData("Commands/Test Shot (No Aim)", testShotCommand());
     SmartDashboard.putData("Commands/Drive X-Lock", Commands.runOnce(drive::stopWithX, drive));
@@ -392,13 +388,17 @@ public class RobotContainer {
    * inside {@link Shooter#isReadyToShoot()} holds feeding until the heading converges, so volleys
    * only leave when genuinely on target. The intake sweeps in and shutters to herd balls for the
    * duration, returning to its extended posture afterward.
+   *
+   * @param xSupplier Field-relative translation input (driver sticks; constant zero in auto so the
+   *     robot only rotates in place and stray stick input can never move it).
+   * @param ySupplier See xSupplier.
    */
-  private Command aimAndShootCommand() {
+  private Command aimAndShootCommand(DoubleSupplier xSupplier, DoubleSupplier ySupplier) {
     return Commands.parallel(
             DriveCommands.joystickDriveAtAngle(
                 drive,
-                () -> -controller.getLeftY(),
-                () -> -controller.getLeftX(),
+                xSupplier,
+                ySupplier,
                 this::getTargetHeading,
                 Constants.Shooter.SHOOT_ON_MOVE_SPEED_SCALAR),
             shootCommand())
@@ -594,9 +594,9 @@ public class RobotContainer {
                                     vision.getHubDistanceMeters(),
                                     simulationManager.getShotsFired())),
                         Commands.waitSeconds(2.0)),
-                    // Aim + shoot so the new aim interlock is satisfied (sticks read zero, so
-                    // the robot rotates in place to face the hub)
-                    aimAndShootCommand()),
+                    // Aim + shoot so the aim interlock is satisfied (zero translation, so the
+                    // robot rotates in place to face the hub)
+                    aimAndShootCommand(() -> 0.0, () -> 0.0)),
                 Commands.runOnce(
                     () ->
                         System.out.printf(

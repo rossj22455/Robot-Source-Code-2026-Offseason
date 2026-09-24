@@ -48,26 +48,6 @@ public class FieldConstants {
   public static final Translation2d RED_FUNNEL_TARGET_LOW_Y = new Translation2d(15.54, 1.0);
   public static final Translation2d RED_FUNNEL_TARGET_HIGH_Y = new Translation2d(15.54, 7.07);
 
-  // Hub ramp footprints (shared geometry with simulation/BumpSimulation): each hub is flanked by
-  // two 47 in wide ramps extending 23.5-108.5 in from the hub center along Y. Tilt inside these
-  // zones is EXPECTED (the robot is driving a ramp), not an anomaly.
-  private static final double BLUE_HUB_X = 4.5974;
-  private static final double RED_HUB_X = 11.938;
-  private static final double HUB_Y = 4.034536;
-  private static final double RAMP_HALF_WIDTH_X = Units.inchesToMeters(23.5);
-  private static final double RAMP_OUTER_Y = Units.inchesToMeters(108.5);
-  // Extra margin so tilt stays masked while the robot straddles a ramp edge (~half a robot)
-  private static final double RAMP_MASK_MARGIN_METERS = 0.5;
-
-  /** True when the robot is on or straddling a hub ramp, where pitch/roll is expected. */
-  public static boolean isOnHubRamp(Translation2d position) {
-    if (Math.abs(position.getY() - HUB_Y) > RAMP_OUTER_Y + RAMP_MASK_MARGIN_METERS) {
-      return false;
-    }
-    return Math.abs(position.getX() - BLUE_HUB_X) <= RAMP_HALF_WIDTH_X + RAMP_MASK_MARGIN_METERS
-        || Math.abs(position.getX() - RED_HUB_X) <= RAMP_HALF_WIDTH_X + RAMP_MASK_MARGIN_METERS;
-  }
-
   /**
    * Returns the corner point to funnel fuel toward when the robot is inside the neutral zone, or
    * empty when hub shooting is legal. The corner is always on the robot's own alliance wall, on the

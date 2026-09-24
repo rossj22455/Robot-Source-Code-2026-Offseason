@@ -36,7 +36,8 @@ public class VisionConstants {
   // solves and the field-boundary rejection in Vision. If the file is missing or unreadable it
   // falls back to the stock 2026 field and raises an alert, so a missing map fails loudly instead
   // of feeding silently-wrong poses to the estimator.
-  public static final String CUSTOM_FIELD_FILENAME = "2026-robocon-welded-photonvision-wpilib.json";
+  public static final String CUSTOM_FIELD_FILENAME =
+      "2026-robocon-welded-photonvision-wpilib-apriltag-map.json";
 
   private static final Alert customFieldMissingAlert =
       new Alert(
@@ -112,11 +113,23 @@ public class VisionConstants {
   // Pose-observation rejection thresholds (AdvantageKit vision template defaults — tune on field)
   public static double maxAmbiguity = 0.3; // Single-tag ambiguity cutoff
   public static double maxZError = 0.75; // Meters; the robot should not leave the floor
+  // Single-tag observations beyond this range are ignored (range error grows with distance). Covers
+  // the full shooter table (4.3 m) with margin — PLACEHOLDER, tune against tape-measured spots.
+  public static double maxSingleTagDistance = 6.0; // Meters
 
   // Standard deviation baselines for 1 tag at 1 meter distance (AdvantageKit template defaults;
   // adjusted automatically based on distance and number of tags)
   public static double linearStdDevBaseline = 0.02; // Meters
   public static double angularStdDevBaseline = 0.06; // Radians
+
+  // Vision snap (the SnapPoseToVision auto command, used after crossing the bump). Only a
+  // measurement at least this good (its X/Y std dev, meters) is snapped to: 0.25 m is one tag at
+  // ~3.5 m with the baseline above, or two tags at ~5 m. PLACEHOLDER — tune.
+  public static double visionSnapMaxLinearStdDev = 0.25;
+  // Std dev given to the snap measurement: tiny, so the estimator takes ~99% of it
+  public static double visionSnapStdDev = 0.001;
+  // Give up if no good measurement arrives in this long (normal fusion carries on) — PLACEHOLDER
+  public static double visionSnapTimeoutSecs = 2.0;
 
   // Per-camera trust multipliers (>= 1 means less trusted) — PLACEHOLDER
   public static double[] cameraStdDevFactors = new double[] {1.0, 1.0, 1.0};
