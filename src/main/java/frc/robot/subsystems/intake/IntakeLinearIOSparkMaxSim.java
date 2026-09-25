@@ -28,8 +28,8 @@ import org.ironmaple.simulation.motorsims.SimulatedBattery;
  *   <li>Hardstops at both ends of travel that zero velocity but NOT the applied voltage, so driving
  *       into a stop produces a realistic stall current (~8.8 A at the -1 V homing command) and the
  *       boot-up homing state machine completes exactly as on real hardware.
- *   <li>An unknown boot offset: the mechanism starts partially extended with the encoder reading
- *       zero, so homing has real work to do.
+ *   <li>A boot offset (SIM_BOOT_OFFSET_METERS): 0 mirrors the real robot, which is powered on with
+ *       the intake all the way in; set it non-zero to exercise the optional homing sequence.
  * </ul>
  */
 public class IntakeLinearIOSparkMaxSim extends IntakeLinearIOSparkMax {
@@ -38,7 +38,7 @@ public class IntakeLinearIOSparkMaxSim extends IntakeLinearIOSparkMax {
   // PLACEHOLDER sim-only values: reflected mechanism inertia, the unknown boot position, and
   // the equivalent voltage of static friction (brake mode + rack friction)
   private static final double SIM_MOI_KG_M2 = 0.002;
-  private static final double SIM_BOOT_OFFSET_METERS = 0.05;
+  private static final double SIM_BOOT_OFFSET_METERS = 0.0;
   private static final double STATIC_FRICTION_VOLTS = 0.5;
   // Meters of rack travel per output (pinion) rotation
   private static final double METERS_PER_OUTPUT_ROTATION =

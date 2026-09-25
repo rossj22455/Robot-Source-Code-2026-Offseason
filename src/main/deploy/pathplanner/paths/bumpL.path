@@ -48,16 +48,16 @@
     },
     {
       "anchor": {
-        "x": 5.656195462478185,
-        "y": 5.6070470756062765
+        "x": 5.655383839021006,
+        "y": 5.463849113732417
       },
       "prevControl": {
-        "x": 6.3480496203009285,
-        "y": 5.562143295127589
+        "x": 6.34723799684375,
+        "y": 5.418945333253729
       },
       "nextControl": {
-        "x": 3.9381904370005447,
-        "y": 5.71855167473755
+        "x": 3.937378813543366,
+        "y": 5.5753537128636905
       },
       "isLocked": false,
       "linkedName": null
@@ -92,6 +92,10 @@
     {
       "waypointRelativePos": 3.1006289308176114,
       "rotationDegrees": -104.0
+    },
+    {
+      "waypointRelativePos": 3.8273858921161805,
+      "rotationDegrees": -104.0
     }
   ],
   "constraintZones": [
@@ -110,7 +114,30 @@
     }
   ],
   "pointTowardsZones": [],
-  "eventMarkers": [],
+  "eventMarkers": [
+    {
+      "name": "IntakeRun",
+      "waypointRelativePos": 0.5598014888337476,
+      "endWaypointRelativePos": 3.021339950372209,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "IntakeRun"
+        }
+      }
+    },
+    {
+      "name": "SpinUp",
+      "waypointRelativePos": 3.2436724565756867,
+      "endWaypointRelativePos": null,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "SpinUp"
+        }
+      }
+    }
+  ],
   "globalConstraints": {
     "maxVelocity": 4.25,
     "maxAcceleration": 3.25,

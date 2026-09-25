@@ -33,6 +33,9 @@ import java.util.function.Supplier;
 
 public class DriveCommands {
   private static final double DEADBAND = 0.1;
+  // Teleop translation speed cap as a fraction of the drivetrain's max (full stick = this x max).
+  // Applies to all joystick driving, including aim-and-shoot; autonomous paths are unaffected.
+  private static final double TELEOP_LINEAR_SPEED_SCALAR = 0.75;
   private static final double ANGLE_KP = 5.0;
   private static final double ANGLE_KD = 0.4;
   private static final double ANGLE_MAX_VELOCITY = 8.0;
@@ -49,8 +52,8 @@ public class DriveCommands {
     double linearMagnitude = MathUtil.applyDeadband(Math.hypot(x, y), DEADBAND);
     Rotation2d linearDirection = new Rotation2d(Math.atan2(y, x));
 
-    // Square magnitude for more precise control
-    linearMagnitude = linearMagnitude * linearMagnitude;
+    // Square magnitude for more precise control, then apply the teleop speed cap
+    linearMagnitude = linearMagnitude * linearMagnitude * TELEOP_LINEAR_SPEED_SCALAR;
 
     // Return new linear velocity
     return new Pose2d(Translation2d.kZero, linearDirection)

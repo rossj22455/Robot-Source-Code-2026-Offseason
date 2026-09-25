@@ -255,10 +255,12 @@ public class RobotContainer {
     // rollers and is meant for PP
     // event zones or deadline groups (it never ends on its own).
     NamedCommands.registerCommand(
-        "Shoot", aimAndShootCommand(() -> 0.0, () -> 0.0).withTimeout(4.0));
+        "Shoot",
+        aimAndShootCommand(() -> 0.0, () -> 0.0)
+            .withTimeout(Constants.Shooter.AUTO_SHOOT_TIMEOUT_SECS));
     NamedCommands.registerCommand("IntakeRun", intake.intakeCommand());
     NamedCommands.registerCommand("IntakeStop", Commands.runOnce(intake::stopRollers, intake));
-    NamedCommands.registerCommand("IntakeRetract", intake.retractCommand());
+    NamedCommands.registerCommand("IntakeRetract", retractWithStagingCommand());
     // Pre-spin while driving to the shooting pose (latched; the next Shoot's end, or disabling,
     // stops it) — the drum reaches the mapped RPM during travel so Shoot only needs aim+staging
     NamedCommands.registerCommand("SpinUp", Commands.runOnce(shooter::startSpinUp, shooter));
@@ -318,15 +320,9 @@ public class RobotContainer {
     // Switch to X pattern when X button is pressed
     controller.square().onTrue(Commands.runOnce(drive::stopWithX, drive));
 
-    controller
-        .circle()
-        .onTrue(
-            Commands.runOnce(
-                    () ->
-                        drive.setPose(
-                            new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
-                    drive)
-                .ignoringDisable(true));
+    // Heading reset: press with the shooter (robot front) pointing away from the driver. Vision
+    // then refines it on the next good multitag fix.
+    controller.circle().onTrue(resetHeadingCommand());
 
     // ---- Mechanism bindings (PLACEHOLDER layout — adjust to driver preference) ----
 
@@ -338,7 +334,8 @@ public class RobotContainer {
     // Deploy the intake (stays out afterward) and run the rollers while held
     controller.L2().whileTrue(intake.intakeCommand());
 
-    controller.L1().onTrue(intake.retractCommand());
+    // Retract: rollers turn gently inward and the belt stages balls into the robot on the way home
+    controller.L1().onTrue(retractWithStagingCommand());
 
     // Emergency fast stow: bring the intake all the way home now, on an aggressive profile,
     // interrupting whatever else was using it (including a held shot)
@@ -366,7 +363,7 @@ public class RobotContainer {
   private void configureDashboardButtons() {
     SmartDashboard.putData("Commands/Intake Home", intake.homeCommand());
     SmartDashboard.putData("Commands/Intake Deploy + Rollers", intake.intakeCommand());
-    SmartDashboard.putData("Commands/Intake Retract", intake.retractCommand());
+    SmartDashboard.putData("Commands/Intake Retract", retractWithStagingCommand());
     SmartDashboard.putData("Commands/Intake Fast Retract", intake.fastRetractCommand());
     SmartDashboard.putData(
         "Commands/Aim + Shoot",
@@ -374,12 +371,7 @@ public class RobotContainer {
     SmartDashboard.putData("Commands/Unjam", unjamCommand());
     SmartDashboard.putData("Commands/Test Shot (No Aim)", testShotCommand());
     SmartDashboard.putData("Commands/Drive X-Lock", Commands.runOnce(drive::stopWithX, drive));
-    SmartDashboard.putData(
-        "Commands/Reset Heading",
-        Commands.runOnce(
-                () -> drive.setPose(new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
-                drive)
-            .ignoringDisable(true));
+    SmartDashboard.putData("Commands/Reset Heading", resetHeadingCommand());
   }
 
   /**
@@ -446,26 +438,35 @@ public class RobotContainer {
   }
 
   /**
-   * Declares the robot's current physical facing relative to the driver, fixing the pose
-   * estimator's heading so field-relative driving is immediately correct. Alliance-aware: driver
-   * forward means away from your own alliance wall. Pass {@code kZero} when the shooter (robot
-   * front) points away from the driver, {@code k180deg} when the intake does.
+   * Declares that the robot front (shooter) points away from the driver, fixing the pose
+   * estimator's heading. Alliance-aware: the pose frame is blue-origin, so "away from the driver"
+   * is 0 deg on blue but 180 deg on red.
    */
-  // private Command declareHeadingCommand(Rotation2d robotFacingRelativeToDriverForward) {
-  //   return Commands.runOnce(
-  //           () -> {
-  //             boolean isRed =
-  //                 DriverStation.getAlliance().orElse(DriverStation.Alliance.Blue)
-  //                     == DriverStation.Alliance.Red;
-  //             Rotation2d driverForward = isRed ? Rotation2d.k180deg : Rotation2d.kZero;
-  //             drive.setPose(
-  //                 new Pose2d(
-  //                     drive.getPose().getTranslation(),
-  //                     driverForward.plus(robotFacingRelativeToDriverForward)));
-  //           },
-  //           drive)
-  //       .ignoringDisable(true);
-  // }
+  private Command resetHeadingCommand() {
+    return Commands.runOnce(
+            () -> {
+              boolean isRed =
+                  DriverStation.getAlliance().orElse(DriverStation.Alliance.Blue)
+                      == DriverStation.Alliance.Red;
+              drive.setPose(
+                  new Pose2d(
+                      drive.getPose().getTranslation(),
+                      isRed ? Rotation2d.k180deg : Rotation2d.kZero));
+            },
+            drive)
+        .ignoringDisable(true)
+        .withName("ResetHeading");
+  }
+
+  /**
+   * Brings the intake home while the rollers turn gently inward and the indexer belt gently stages
+   * balls forward, so balls caught on the intake edge get pulled in instead of stuck. Ends when the
+   * intake is home (the belt stops with it).
+   */
+  private Command retractWithStagingCommand() {
+    return Commands.deadline(intake.retractCommand(), indexer.stageCommand())
+        .withName("RetractWithStaging");
+  }
 
   private Command shootCommand() {
     return Commands.runEnd(
@@ -483,8 +484,8 @@ public class RobotContainer {
               shooter.stopShooter(); // Drum drops to idle spin, not a dead stop
               shooter.stopKicker();
               indexer.stop();
+              // Ends the pulse and returns the intake to wherever it was before the shot
               intake.stopAggregating();
-              intake.retract(); // Stay home until L2 deploys the intake again
             },
             shooter,
             indexer,

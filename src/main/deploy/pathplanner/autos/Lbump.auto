@@ -11,9 +11,33 @@
           }
         },
         {
+          "type": "named",
+          "data": {
+            "name": "SnapPoseToVision"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "Shoot"
+          }
+        },
+        {
           "type": "path",
           "data": {
             "pathName": "Copy of secondsweep"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "SnapPoseToVision"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "Shoot"
           }
         }
       ]

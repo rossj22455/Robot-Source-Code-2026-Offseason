@@ -25,6 +25,8 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.subsystems.vision.VisionIO.PoseObservation;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -50,6 +52,7 @@ public class Vision extends SubsystemBase {
   private final Alert[] disconnectedAlerts;
 
   private double lastAcceptedPoseTimestamp = Double.NEGATIVE_INFINITY;
+  private final String[] lastRejectReasons;
 
   // Indexed to match the IO array order in RobotContainer
   private static final Transform3d[] robotToCameraTransforms = {
@@ -71,6 +74,9 @@ public class Vision extends SubsystemBase {
     for (int i = 0; i < inputs.length; i++) {
       inputs[i] = new VisionIOInputsAutoLogged();
     }
+
+    this.lastRejectReasons = new String[io.length];
+    Arrays.fill(lastRejectReasons, "none");
 
     // Initialize disconnected alerts (warnings, not errors — the robot degrades gracefully to
     // pure odometry when a camera fails)
@@ -180,30 +186,13 @@ public class Vision extends SubsystemBase {
       if (cameraIndex < cameraRoles.length && cameraRoles[cameraIndex] == CameraRole.APRILTAG) {
         for (var observation : inputs[cameraIndex].poseObservations) {
           // Check whether to reject pose
-          boolean rejectPose =
-              observation.tagCount() == 0 // Must have at least one tag
-                  || (observation.tagCount() == 1
-                      && observation.ambiguity() > maxAmbiguity) // Cannot be high ambiguity
-                  || Math.abs(observation.pose().getZ())
-                      > maxZError // Must have realistic Z coordinate
-
-                  // Must be finite: NaN passes every </>/ comparison and would permanently
-                  // corrupt the pose estimator's Kalman state
-                  || !Double.isFinite(observation.pose().getX())
-                  || !Double.isFinite(observation.pose().getY())
-                  || !Double.isFinite(observation.pose().getZ())
-                  || !Double.isFinite(observation.averageTagDistance())
-
-                  // Must be within the field boundaries
-                  || observation.pose().getX() < 0.0
-                  || observation.pose().getX() > aprilTagLayout.getFieldLength()
-                  || observation.pose().getY() < 0.0
-                  || observation.pose().getY() > aprilTagLayout.getFieldWidth();
+          String rejectReason = getRejectReason(observation);
 
           // Add pose to log
           robotPoses.add(observation.pose());
-          if (rejectPose) {
+          if (rejectReason != null) {
             robotPosesRejected.add(observation.pose());
+            lastRejectReasons[cameraIndex] = "Multitag: " + rejectReason;
             continue;
           }
           robotPosesAccepted.add(observation.pose());
@@ -232,11 +221,22 @@ public class Vision extends SubsystemBase {
         for (var observation : inputs[cameraIndex].singleTagObservations) {
           var tagPose = aprilTagLayout.getTagPose(observation.tagId());
           var heading = headingSampler.sample(observation.timestamp());
-          if (tagPose.isEmpty()
-              || heading.isEmpty() // Heading not anchored to the field yet
-              || cameraIndex >= robotToCameraTransforms.length
-              || !Double.isFinite(observation.cameraToTag().getNorm())
-              || observation.cameraToTag().getNorm() > maxSingleTagDistance) {
+          String skipReason =
+              tagPose.isEmpty()
+                  ? "tag " + observation.tagId() + " not in field layout"
+                  : heading.isEmpty()
+                      ? "heading not set yet (press Circle or see 2+ tags)"
+                      : cameraIndex >= robotToCameraTransforms.length
+                          ? "no camera transform"
+                          : !Double.isFinite(observation.cameraToTag().getNorm())
+                              ? "non-finite tag distance"
+                              : observation.cameraToTag().getNorm() > maxSingleTagDistance
+                                  ? String.format(
+                                      "tag %.2f m away > max %.2f m",
+                                      observation.cameraToTag().getNorm(), maxSingleTagDistance)
+                                  : null;
+          if (skipReason != null) {
+            lastRejectReasons[cameraIndex] = "Single tag skipped: " + skipReason;
             continue;
           }
 
@@ -248,15 +248,12 @@ public class Vision extends SubsystemBase {
                   observation.cameraToTag());
 
           // Must be within the field boundaries
-          boolean rejectPose =
-              pose.getX() < 0.0
-                  || pose.getX() > aprilTagLayout.getFieldLength()
-                  || pose.getY() < 0.0
-                  || pose.getY() > aprilTagLayout.getFieldWidth();
+          String rejectReason = getOutOfFieldReason(pose.getX(), pose.getY());
 
           robotPoses.add(new Pose3d(pose));
-          if (rejectPose) {
+          if (rejectReason != null) {
             robotPosesRejected.add(new Pose3d(pose));
+            lastRejectReasons[cameraIndex] = "Single tag: " + rejectReason;
             continue;
           }
           robotPosesAccepted.add(new Pose3d(pose));
@@ -274,7 +271,10 @@ public class Vision extends SubsystemBase {
         }
       }
 
-      // Log camera data
+      // Log camera data. LastRejectReason keeps the most recent reason a pose was thrown out, so a
+      // stream of rejections is diagnosable in AdvantageScope.
+      Logger.recordOutput(
+          "Vision/Camera" + cameraIndex + "/LastRejectReason", lastRejectReasons[cameraIndex]);
       Logger.recordOutput(
           "Vision/Camera" + cameraIndex + "/TagPoses", tagPoses.toArray(new Pose3d[0]));
       Logger.recordOutput(
@@ -300,6 +300,47 @@ public class Vision extends SubsystemBase {
         "Vision/Summary/RobotPosesRejected", allRobotPosesRejected.toArray(new Pose3d[0]));
     Logger.recordOutput("Vision/HubDistanceMeters", getHubDistanceMeters());
     Logger.recordOutput("Vision/HasHubPoseConfidence", hasHubPoseConfidence());
+  }
+
+  /** Why a multitag observation must be rejected, or null if it is usable. */
+  private static String getRejectReason(PoseObservation observation) {
+    Pose3d pose = observation.pose();
+    if (observation.tagCount() == 0) {
+      return "no tags";
+    }
+    if (observation.tagCount() == 1 && observation.ambiguity() > maxAmbiguity) {
+      return String.format("ambiguity %.2f > max %.2f", observation.ambiguity(), maxAmbiguity);
+    }
+    // Must be finite: NaN passes every </> comparison and would permanently corrupt the pose
+    // estimator's Kalman state
+    if (!Double.isFinite(pose.getX())
+        || !Double.isFinite(pose.getY())
+        || !Double.isFinite(pose.getZ())
+        || !Double.isFinite(observation.averageTagDistance())) {
+      return "non-finite pose";
+    }
+    // Must have a realistic Z (the robot doesn't leave the floor). A consistently wrong Z usually
+    // means the camera mount (robotToCamera height or pitch) is wrong.
+    if (Math.abs(pose.getZ()) > maxZError) {
+      return String.format(
+          "Z %.2f m off the floor > max %.2f m (check camera height/pitch)",
+          pose.getZ(), maxZError);
+    }
+    return getOutOfFieldReason(pose.getX(), pose.getY());
+  }
+
+  /** Why a pose is outside the field boundaries, or null if it is inside. */
+  private static String getOutOfFieldReason(double x, double y) {
+    double margin = fieldBoundsMarginMeters;
+    if (x < -margin
+        || x > aprilTagLayout.getFieldLength() + margin
+        || y < -margin
+        || y > aprilTagLayout.getFieldWidth() + margin) {
+      return String.format(
+          "outside field at (%.2f, %.2f); field is %.2f x %.2f m (+%.1f m margin)",
+          x, y, aprilTagLayout.getFieldLength(), aprilTagLayout.getFieldWidth(), margin);
+    }
+    return null;
   }
 
   /**

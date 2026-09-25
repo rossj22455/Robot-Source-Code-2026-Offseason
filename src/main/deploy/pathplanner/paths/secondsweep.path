@@ -8,8 +8,8 @@
       },
       "prevControl": null,
       "nextControl": {
-        "x": 2.3204919478335913,
-        "y": 6.564507845934379
+        "x": 2.110212578060935,
+        "y": 6.983208225572447
       },
       "isLocked": false,
       "linkedName": "Lfire"
@@ -48,31 +48,31 @@
     },
     {
       "anchor": {
-        "x": 6.67455421686747,
-        "y": 4.089638554216867
+        "x": 6.239752728190248,
+        "y": 4.187977039046237
       },
       "prevControl": {
-        "x": 5.438881740029312,
-        "y": 4.702227522285894
+        "x": 5.0040802513520894,
+        "y": 4.800566007115265
       },
       "nextControl": {
-        "x": 8.026650241964123,
-        "y": 3.4193322034081195
+        "x": 7.591848753286901,
+        "y": 3.51767068823749
       },
       "isLocked": false,
       "linkedName": null
     },
     {
       "anchor": {
-        "x": 7.122590361445783,
+        "x": 6.502718728316408,
         "y": 5.6070470756062765
       },
       "prevControl": {
-        "x": 8.387038945515872,
+        "x": 7.767167312386498,
         "y": 5.6396125864270665
       },
       "nextControl": {
-        "x": 5.909614457831326,
+        "x": 5.289742824701951,
         "y": 5.575807228915662
       },
       "isLocked": false,
@@ -116,11 +116,42 @@
     {
       "waypointRelativePos": 3.946058091286308,
       "rotationDegrees": -33.913029370206544
+    },
+    {
+      "waypointRelativePos": 4.443983402489623,
+      "rotationDegrees": -104.0
+    },
+    {
+      "waypointRelativePos": 4.88381742738589,
+      "rotationDegrees": -104.0
     }
   ],
   "constraintZones": [],
   "pointTowardsZones": [],
-  "eventMarkers": [],
+  "eventMarkers": [
+    {
+      "name": "IntakeRun",
+      "waypointRelativePos": 1.5831265508684869,
+      "endWaypointRelativePos": 4.471464019851101,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "IntakeRun"
+        }
+      }
+    },
+    {
+      "name": "SpinUp",
+      "waypointRelativePos": 4.531017369727041,
+      "endWaypointRelativePos": null,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "SpinUp"
+        }
+      }
+    }
+  ],
   "globalConstraints": {
     "maxVelocity": 4.25,
     "maxAcceleration": 3.25,

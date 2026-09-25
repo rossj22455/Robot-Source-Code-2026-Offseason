@@ -125,6 +125,10 @@ public class Drive extends SubsystemBase {
 
   // Vision snap (see requestVisionSnap): armed by a command, consumed by the next good measurement
   private boolean visionSnapPending = false;
+  // False until a good heading-bearing (multitag) vision measurement has set the heading since the
+  // last pose reset; that first one is applied as a hard heading reference (see
+  // addVisionMeasurement)
+  private boolean visionHeadingSeeded = false;
   private double visionSnapRequestTimestamp = 0.0;
 
   private SwerveModulePosition[] lastModulePositions = // For delta tracking
@@ -261,6 +265,7 @@ public class Drive extends SubsystemBase {
     gyroDisconnectedAlert.set(!gyroInputs.connected && Constants.currentMode != Mode.SIM);
     Logger.recordOutput("Drive/HeadingInitialized", headingInitialized);
     Logger.recordOutput("Drive/VisionSnap/Pending", visionSnapPending);
+    Logger.recordOutput("Drive/VisionHeadingSeed/Seeded", visionHeadingSeeded);
   }
 
   /**
@@ -394,6 +399,9 @@ public class Drive extends SubsystemBase {
     poseEstimator.resetPosition(rawGyroRotation, getModulePositions(), pose);
     headingInitialized = true;
     visionSnapPending = false;
+    // A reset (driver heading button, auto start) is only as accurate as the robot's placement, so
+    // let the next good multitag measurement re-establish the heading precisely
+    visionHeadingSeeded = false;
   }
 
   /**
@@ -439,6 +447,31 @@ public class Drive extends SubsystemBase {
               VisionConstants.visionSnapStdDev,
               VisionConstants.visionSnapStdDev,
               visionMeasurementStdDevs.get(2, 0));
+    }
+    // Heading seed: the first good heading-bearing measurement after boot or a pose reset SETS the
+    // heading (tiny theta std dev) instead of nudging it. Without this the heading is only as good
+    // as the gyro's power-on zero or where the robot pointed when the heading button was pressed —
+    // and single-tag solves inherit any heading error as position error.
+    double thetaStdDev = visionMeasurementStdDevs.get(2, 0);
+    if (!visionHeadingSeeded
+        && Double.isFinite(thetaStdDev)
+        && thetaStdDev <= VisionConstants.visionHeadingSeedMaxStdDev) {
+      visionHeadingSeeded = true;
+      poseEstimator
+          .sampleAt(timestampSeconds)
+          .ifPresent(
+              before ->
+                  Logger.recordOutput(
+                      "Drive/VisionHeadingSeed/CorrectionDeg",
+                      visionRobotPoseMeters
+                          .getRotation()
+                          .minus(before.getRotation())
+                          .getDegrees()));
+      visionMeasurementStdDevs =
+          VecBuilder.fill(
+              visionMeasurementStdDevs.get(0, 0),
+              visionMeasurementStdDevs.get(1, 0),
+              VisionConstants.visionSnapStdDev);
     }
     poseEstimator.addVisionMeasurement(
         visionRobotPoseMeters, timestampSeconds, visionMeasurementStdDevs);

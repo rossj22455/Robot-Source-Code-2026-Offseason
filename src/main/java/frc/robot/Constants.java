@@ -44,10 +44,10 @@ public final class Constants {
     // CAN IDs — PLACEHOLDER assignments, but note the legal FRC CAN device ID range is 0-62
     public static final int LINEAR_MOTOR_ID = 33;
     public static final int ROLLER_MASTER_ID = 35;
-    public static final int ROLLER_FOLLOWER_ID = 46;
-    // Only the master roller motor is installed right now. Set true once the second NEO is mounted
-    // (and ROLLER_FOLLOWER_ID is set to its real ID) to bring back the inverted hardware follower.
-    public static final boolean ROLLER_FOLLOWER_INSTALLED = false;
+    public static final int ROLLER_FOLLOWER_ID = 37;
+    // Second roller NEO (ID 37) is mounted: runs as an inverted hardware follower of the master.
+    // Set false to run on the master alone (no controller is created for the follower then).
+    public static final boolean ROLLER_FOLLOWER_INSTALLED = true;
 
     // The slide motor's raw direction is negative = extend (measured: fully extended read about
     // -0.280 m). Inverting it makes positive = extend everywhere in code, matching the setpoints.
@@ -96,16 +96,19 @@ public final class Constants {
     // maintaining position against the retracted hardstop; the homing limit is applied while
     // intentionally stalling into the hardstop. PLACEHOLDER starting values.
     public static final int LINEAR_NORMAL_CURRENT_LIMIT_AMPS = 30;
-    public static final int LINEAR_HOMING_CURRENT_LIMIT_AMPS = 10;
+    // Raised 10 -> 20 A (2026-09-24): homing needed a hand to push the slide home
+    public static final int LINEAR_HOMING_CURRENT_LIMIT_AMPS = 20;
     public static final int LINEAR_HOLDING_CURRENT_LIMIT_AMPS = 5;
 
     // Homing: hold the home button to drive slowly into the retracted hardstop and detect the
     // stall via current rise + velocity stagnation. PLACEHOLDER values — verify direction (sign)
     // and thresholds on the real mechanism before first power-on.
-    // Negative = retract (motor is inverted, see LINEAR_MOTOR_INVERTED). Slowed from -1.5 V.
-    public static final double HOMING_VOLTS = -1.5;
-    // A NEO stalled at 1 V only draws about 8.8 A, so the threshold sits well below that
-    public static final double HOMING_STALL_CURRENT_AMPS = 8.0;
+    // Negative = retract (motor is inverted, see LINEAR_MOTOR_INVERTED). Raised -1.5 -> -3.0 V
+    // (2026-09-24): at -1.5 V the slide stalled on friction partway and needed a push.
+    public static final double HOMING_VOLTS = -3.0;
+    // A NEO stalled at 3 V would draw ~26 A, capped at the 20 A homing limit, so a real hardstop
+    // stall reads ~20 A. The threshold sits well above the current of the slide just moving.
+    public static final double HOMING_STALL_CURRENT_AMPS = 15.0;
     public static final double HOMING_STALL_VELOCITY_METERS_PER_SEC = 0.005;
     public static final double HOMING_STALL_DEBOUNCE_SECS = 0.25;
     // Longer than before because the slower speed can take several seconds over full travel
@@ -114,10 +117,12 @@ public final class Constants {
     // Thermal monitoring — PLACEHOLDER warning threshold
     public static final double MOTOR_TEMP_WARNING_CELSIUS = 80.0;
 
-    // Firing aggregation ("shutter"): while shooting, the intake sweeps fully in to herd balls,
-    // then oscillates between the retracted position and this partially-out position until firing
-    // stops. PLACEHOLDER stroke length — tune for effective ball agitation.
-    public static final double SHUTTER_OUT_POSITION_METERS = 0.10;
+    // Firing aggregation ("shutter"): while shooting, the intake pulses between these two
+    // positions (in to SHUTTER_IN, back out to SHUTTER_OUT, repeat) with the rollers turning gently
+    // inward (ROLLER_RETRACT_VOLTS), herding balls toward the indexer without ever coming all the
+    // way home. Positions are meters of slide travel (0 = retracted, ~0.316 = fully extended).
+    public static final double SHUTTER_IN_POSITION_METERS = 0.20;
+    public static final double SHUTTER_OUT_POSITION_METERS = LINEAR_EXTENDED_POSITION_METERS;
 
     // Aggregation motion speed — deliberately slower than normal positioning so the intake herds
     // balls instead of batting them away. PLACEHOLDER — tune against real ball behavior.
@@ -125,8 +130,15 @@ public final class Constants {
     public static final double AGGREGATE_MAX_ACCELERATION_METERS_PER_SEC_SQ = 0.8;
 
     // Rollers — PLACEHOLDER starting values: tune the intake/eject speeds on the real mechanism
-    public static final double ROLLER_INTAKE_VOLTS = 8.0;
+    // Raised 8 -> 10 V for faster intaking (2026-09-24); 12 V is the ceiling
+    public static final double ROLLER_INTAKE_VOLTS = 10.0;
     public static final double ROLLER_EJECT_VOLTS = -6.0;
+    // While the intake retracts, the rollers keep turning gently inward so balls caught on the
+    // edge get pulled in instead of pinched. PLACEHOLDER — just enough to keep balls moving.
+    public static final double ROLLER_RETRACT_VOLTS = 4.0;
+    // Upper bound on how long a retract keeps the rollers/belt assisting (normal retract takes
+    // ~1 s); also ends it if the slide can't reach home (e.g. not homed yet)
+    public static final double RETRACT_ASSIST_TIMEOUT_SECS = 2.0;
     public static final int ROLLER_CURRENT_LIMIT_AMPS = 40;
   }
 
@@ -173,18 +185,26 @@ public final class Constants {
     public static final double DRUM_STATOR_CURRENT_LIMIT_AMPS = 60.0;
     public static final double DRUM_SUPPLY_CURRENT_LIMIT_AMPS = 40.0;
 
-    // Vision distance (meters) -> drum RPM interpolation map. Starting values from the trajectory
-    // calculator (64 degree hood, eta=0.9, exit height 17.973 in) — verify with real shot tuning.
-    // NOTE: no ballistic solution exists below ~1.7 m at this hood angle; the interpolation map
-    // clamps to the 1.7 m entry for closer shots. Rows are {distanceMeters, rpm}; distances MUST
-    // be strictly increasing and distinct (validated at Shooter construction).
+    // Distance (meters, ROBOT CENTER -> hub center, from the pose) -> drum RPM interpolation map.
+    // Measured on the real robot 2026-09-24 at 70/80/90/100 in from hub center to the front
+    // bumper face; converted by adding robot center -> front bumper face = 29/2 in frame + 3.75 in
+    // bumper = 18.25 in. PREDICTED rows extend the table beyond the measured 2.24-3.00 m span
+    // (vacuum ballistics fitted to the measured rows, 72 in hub opening, anchored to the measured
+    // end rows). They are estimates — the measured data rises more slowly than the model, so far
+    // PREDICTED rows may run hot. Replace each with a measured shot (in from bumper noted). Outside
+    // the table the map clamps to its end rows. Rows are {distanceMeters, rpm}; distances MUST be
+    // strictly increasing and distinct (validated at Shooter construction).
     public static final double[][] DISTANCE_TO_RPM_MAP = {
-      {1.7, 1666.0},
-      {2.2, 1714.0},
-      {2.7, 1826.0},
-      {3.2, 1947.0},
-      {3.7, 2068.0},
-      {4.3, 2211.0},
+      {1.7, 2460.0}, // PREDICTED (~49 in from bumper)
+      {2.0, 2550.0}, // PREDICTED (~60 in from bumper)
+      {Units.inchesToMeters(70.0 + 18.25), 2630.0}, // 2.242 m, measured
+      {Units.inchesToMeters(80.0 + 18.25), 2690.0}, // 2.496 m, measured
+      {Units.inchesToMeters(90.0 + 18.25), 2720.0}, // 2.750 m, measured
+      {Units.inchesToMeters(100.0 + 18.25), 2760.0}, // 3.004 m, measured
+      {3.3, 2860.0}, // PREDICTED (~112 in from bumper)
+      {3.6, 2960.0}, // PREDICTED (~123 in from bumper)
+      {4.0, 3090.0}, // PREDICTED (~139 in from bumper)
+      {4.3, 3180.0}, // PREDICTED (~151 in from bumper)
     };
 
     // isReadyToShoot(): drum velocity must stay within this tolerance of the vision-mapped target
@@ -208,7 +228,8 @@ public final class Constants {
     // drum falls back to this fixed setpoint and the driver ranges by eye. (Autonomous never uses
     // this — it keeps ranging off the odometry pose.) PLACEHOLDER — pick the RPM for the distance
     // you most commonly shoot from.
-    public static final double VISION_FALLBACK_RPM = 1900.0;
+    // 2700 = the measured table at ~85 in from the bumper (mid-range); was 1900 for the old table
+    public static final double VISION_FALLBACK_RPM = 2700.0;
 
     // Neutral-zone funneling: fixed lob RPM toward the alliance corner (distance-to-corner varies
     // and precision doesn't matter — just get fuel back to friendly territory). PLACEHOLDER.
@@ -223,10 +244,12 @@ public final class Constants {
     // Kicker (NEO through a 3:1 gearbox, basic voltage control) — PLACEHOLDER speeds
     public static final double KICKER_GEAR_RATIO = 3.0;
     // Feed volts drive BPS: the harder the kicker shoves balls into the drum, the faster the
-    // volley. Raised 6 -> 10 to push throughput; can go toward 12 if the drum keeps balls on
-    // target. Watch Shooter/Drum/VelocityErrorRpm — if the per-ball sag grows past the drum's
-    // recovery, shots scatter (raise DRUM_STATOR_CURRENT_LIMIT_AMPS or back this down).
-    public static final double KICKER_FEED_VOLTS = 8.0; // Tune on real mechanism
+    // volley. The kicker must move balls FASTER than the indexer belt delivers them, so each ball
+    // is pulled away from the one behind it and they enter the drum one at a time (2026-09-24: at
+    // equal 8 V the first 2-3 staged balls entered together and under-shot). Kicker 10 V vs belt
+    // 6 V; widen the gap if balls still double up. Watch Shooter/Drum/VelocityErrorRpm — if the
+    // per-ball sag grows past the drum's recovery, shots scatter.
+    public static final double KICKER_FEED_VOLTS = 10.0; // Tune on real mechanism
     public static final double KICKER_REVERSE_VOLTS =
         -4.0; // Moderate reverse for unjam; PLACEHOLDER
     // Raised 30 -> 40 so the NEO doesn't current-clip at the higher feed voltage
@@ -243,6 +266,9 @@ public final class Constants {
     // How long R2 is held (from press) before the intake stops collecting and sweeps in to herd
     // the remaining balls. PLACEHOLDER — tune to how long a volley takes to clear staged balls.
     public static final double SHOOT_HERD_DELAY_SECS = 2.0;
+    // How long the autonomous "Shoot" named command aims + fires before ending (no ball sensor, so
+    // it's time-based). Set to how long a full load takes to clear. PLACEHOLDER.
+    public static final double AUTO_SHOOT_TIMEOUT_SECS = 4.0;
     // While aiming+shooting, cap translation to this fraction of max speed so shoot-on-the-move
     // lead error stays inside the sim-validated envelope. PLACEHOLDER.
     public static final double SHOOT_ON_MOVE_SPEED_SCALAR = 0.5;
@@ -255,10 +281,11 @@ public final class Constants {
     public static final double BALL_EXIT_HEIGHT_METERS = Units.inchesToMeters(19.179766);
     public static final Translation2d BALL_EXIT_OFFSET =
         new Translation2d(Units.inchesToMeters(8.246225), 0.0);
-    // Drum-surface-speed -> ball-exit-speed transfer ratio, back-solved from the RPM lookup table
-    // so the table's RPMs physically drop into the hub (fit 0.63-0.67 across 1.7-4.3 m; vacuum
-    // ballistics). NOT the trajectory calculator's eta.
-    public static final double SURFACE_TO_BALL_SPEED_RATIO = 0.66;
+    // Drum-surface-speed -> ball-exit-speed transfer ratio, fitted to the measured RPM rows so they
+    // physically drop into the 72 in hub opening (vacuum ballistics, 2026-09-24). Drives
+    // shoot-on-the-move flight-time prediction and the sim's launch speed. Was 0.66 for the old
+    // calculated table.
+    public static final double SURFACE_TO_BALL_SPEED_RATIO = 0.46;
   }
 
   /**
@@ -278,13 +305,17 @@ public final class Constants {
     public static final double INDEXER_STATOR_CURRENT_LIMIT_AMPS = 40.0;
     public static final double INDEXER_SUPPLY_CURRENT_LIMIT_AMPS = 30.0;
 
-    // Belt speeds — tune on the real mechanism. Raised 6 -> 10 to keep the belt supplying balls to
-    // the kicker at least as fast as the kicker fires them (a slow belt would starve the kicker and
-    // cap BPS regardless of kicker speed). Keep at or above the kicker's effective feed rate.
-    public static final double INDEXER_FEED_VOLTS = 8.0;
+    // Belt speed — deliberately SLOWER than the kicker (see KICKER_FEED_VOLTS) so balls leave the
+    // belt with a gap between them instead of entering the drum in a clump. Too slow starves the
+    // kicker and lowers BPS; too close to the kicker's speed and balls double up again.
+    public static final double INDEXER_FEED_VOLTS = 6.0;
     // Reverse (unjam) — deliberately gentler than the kicker's reverse (-4.0) so the belt eases the
     // jam back rather than yanking it. PLACEHOLDER.
     public static final double INDEXER_REVERSE_VOLTS = -2.5;
+    // Gentle forward "staging" while the intake retracts: pulls balls off the intake into the
+    // robot even though the drum isn't spinning. The kicker holds in brake mode, so staged balls
+    // stop against it instead of reaching the drum. PLACEHOLDER — keep low.
+    public static final double INDEXER_STAGE_VOLTS = 3.0;
 
     // Thermal monitoring — PLACEHOLDER warning threshold
     public static final double MOTOR_TEMP_WARNING_CELSIUS = 80.0;

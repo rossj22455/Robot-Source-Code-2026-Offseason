@@ -88,11 +88,18 @@ public class VisionConstants {
   // shooter-facing, pitched up 15 deg. NOTE: -15 deg here means tilted UP 15 deg (WPILib pitch is
   // positive-down); flip the sign if the camera is physically tilted down. camera1/camera2 below
   // are example side mounts kept for when more cameras are added — they are not instantiated yet.
+  // Measured 2026-09-24: lens 12.441431 in above the floor, centered left-right, 0.613648 in in
+  // from the front face. Frame is 29 in long (X) by 26 in wide (Y), so the front face is 14.5 in
+  // ahead of robot center: X = 14.5 - 0.613648 = 13.886352 in.
+  // Rotation = the PHYSICAL mount: the camera sits flush on its panel (no twist or roll), tilted up
+  // 15 deg (PLACEHOLDER — measure the panel angle). 2026-09-24 squared-to-hub multitag readings
+  // implied ~19.4 deg up, -3 deg roll and an inconsistent 6-14.5 deg twist; since the mount is
+  // flush, that points to camera calibration or tag placement vs the map, not this transform.
   public static Transform3d robotToCamera0 =
       new Transform3d(
-          Units.inchesToMeters(14.172905),
+          Units.inchesToMeters(13.886352),
           0,
-          Units.inchesToMeters(12.381851),
+          Units.inchesToMeters(12.441431),
           new Rotation3d(
               Units.degreesToRadians(0), Units.degreesToRadians(-15), Units.degreesToRadians(0)));
   public static Transform3d robotToCamera1 =
@@ -121,6 +128,17 @@ public class VisionConstants {
   // adjusted automatically based on distance and number of tags)
   public static double linearStdDevBaseline = 0.02; // Meters
   public static double angularStdDevBaseline = 0.06; // Radians
+
+  // Vision heading seed: the first multitag measurement after boot or a pose reset whose heading
+  // std dev is at most this (radians) sets the heading outright. With the baseline above, 0.3 rad
+  // is two tags within ~3.2 m or four tags within ~4.5 m. PLACEHOLDER — tune.
+  public static double visionHeadingSeedMaxStdDev = 0.3;
+
+  // How far outside the field boundary (meters) a vision pose may land and still be used. Keep
+  // small for matches (walls). For SHOP TESTING, where the robot can stand where the RoboCon
+  // field's walls would be (e.g. farther than ~4 m behind a hub), raise this (e.g. 3.0) or those
+  // readings are rejected as "outside field" and the heading never gets corrected.
+  public static double fieldBoundsMarginMeters = 0.5;
 
   // Vision snap (the SnapPoseToVision auto command, used after crossing the bump). Only a
   // measurement at least this good (its X/Y std dev, meters) is snapped to: 0.25 m is one tag at
