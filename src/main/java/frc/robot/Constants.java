@@ -269,6 +269,12 @@ public final class Constants {
     // How long the autonomous "Shoot" named command aims + fires before ending (no ball sensor, so
     // it's time-based). Set to how long a full load takes to clear. PLACEHOLDER.
     public static final double AUTO_SHOOT_TIMEOUT_SECS = 4.0;
+    // Before firing, the auto Shoot first drives to where the previous path meant to stop (a path
+    // ends on time, not on arrival, so an overshoot would otherwise be left uncorrected). Skipped
+    // if the robot is farther than FINISH_PATH_MAX_DISTANCE_METERS from it (e.g. no path ran), and
+    // capped at FINISH_PATH_TIMEOUT_SECS. PLACEHOLDER values.
+    public static final double FINISH_PATH_TIMEOUT_SECS = 0.75;
+    public static final double FINISH_PATH_MAX_DISTANCE_METERS = 1.0;
     // While aiming+shooting, cap translation to this fraction of max speed so shoot-on-the-move
     // lead error stays inside the sim-validated envelope. PLACEHOLDER.
     public static final double SHOOT_ON_MOVE_SPEED_SCALAR = 0.5;

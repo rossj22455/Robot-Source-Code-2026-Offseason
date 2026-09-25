@@ -1,0 +1,190 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 2.579,
+        "y": 2.4056519270800485
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 2.236825837380938,
+        "y": 1.5680565192708007
+      },
+      "isLocked": false,
+      "linkedName": "Rfire"
+    },
+    {
+      "anchor": {
+        "x": 3.347126726802498,
+        "y": 0.5843688891692427
+      },
+      "prevControl": {
+        "x": 2.003078281713241,
+        "y": 0.5454109632246257
+      },
+      "nextControl": {
+        "x": 4.252147983369063,
+        "y": 0.6106013893595785
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 5.928089320633319,
+        "y": 1.538838074812339
+      },
+      "prevControl": {
+        "x": 5.633050207785561,
+        "y": 0.5902747497147853
+      },
+      "nextControl": {
+        "x": 6.151820123279443,
+        "y": 2.2581421427928485
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 5.928089320633319,
+        "y": 3.4867343720431463
+      },
+      "prevControl": {
+        "x": 5.3601369658079925,
+        "y": 3.2202875882979307
+      },
+      "nextControl": {
+        "x": 6.716987321011796,
+        "y": 3.8568346685170005
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 6.814382135873336,
+        "y": 1.7044092600769571
+      },
+      "prevControl": {
+        "x": 7.995837161007134,
+        "y": 2.0490003090743145
+      },
+      "nextControl": {
+        "x": 6.113139468870247,
+        "y": 1.4998801488677234
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 4.983359616476377,
+        "y": 2.5322651864000507
+      },
+      "prevControl": {
+        "x": 5.95555482560752,
+        "y": 2.494288811043366
+      },
+      "nextControl": {
+        "x": 3.7367059862486602,
+        "y": 2.5809625938308205
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 2.579,
+        "y": 2.4056519270800485
+      },
+      "prevControl": {
+        "x": 2.9965053933009527,
+        "y": 2.3959124455938934
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": "Rfire"
+    }
+  ],
+  "rotationTargets": [
+    {
+      "waypointRelativePos": 0.9609958506224022,
+      "rotationDegrees": 180.0
+    },
+    {
+      "waypointRelativePos": 1.4390041493775865,
+      "rotationDegrees": 180.0
+    },
+    {
+      "waypointRelativePos": 1.887136929460596,
+      "rotationDegrees": -140.40462168835487
+    },
+    {
+      "waypointRelativePos": 2.5443983402489203,
+      "rotationDegrees": -74.49605675845727
+    },
+    {
+      "waypointRelativePos": 3.281327800829839,
+      "rotationDegrees": 161.3767513312056
+    },
+    {
+      "waypointRelativePos": 3.9983402489626108,
+      "rotationDegrees": 49.01293405719341
+    },
+    {
+      "waypointRelativePos": 4.994190871369292,
+      "rotationDegrees": 104.0
+    },
+    {
+      "waypointRelativePos": 5.751037344398314,
+      "rotationDegrees": 104.0
+    }
+  ],
+  "constraintZones": [],
+  "pointTowardsZones": [],
+  "eventMarkers": [
+    {
+      "name": "IntakeRun",
+      "waypointRelativePos": 1.6019851116625545,
+      "endWaypointRelativePos": 4.8416873449131685,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "IntakeRun"
+        }
+      }
+    },
+    {
+      "name": "SpinUp",
+      "waypointRelativePos": 4.972704714640134,
+      "endWaypointRelativePos": null,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "SpinUp"
+        }
+      }
+    }
+  ],
+  "globalConstraints": {
+    "maxVelocity": 3.5,
+    "maxAcceleration": 2.75,
+    "maxAngularVelocity": 560.0,
+    "maxAngularAcceleration": 720.0,
+    "nominalVoltage": 12.0,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": 53.297144969836886
+  },
+  "reversed": false,
+  "folder": "robocon",
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": 53.297144969836886
+  },
+  "useDefaultConstraints": true
+}

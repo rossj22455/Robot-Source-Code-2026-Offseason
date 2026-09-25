@@ -1,0 +1,118 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 2.947807985870183,
+        "y": 4.207456002018546
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 1.7704774944562214,
+        "y": 4.10057059477367
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 0.455,
+        "y": 5.113227780230871
+      },
+      "prevControl": {
+        "x": 0.45499999999999996,
+        "y": 5.850153275324891
+      },
+      "nextControl": {
+        "x": 0.45500000000000007,
+        "y": 4.39244034595221
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 0.455,
+        "y": 2.9315839273323663
+      },
+      "prevControl": {
+        "x": 0.45499999999999996,
+        "y": 3.48707600311838
+      },
+      "nextControl": {
+        "x": 0.45500000000000007,
+        "y": 2.201051061895405
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 1.6134990222670793,
+        "y": 3.9737084463508485
+      },
+      "prevControl": {
+        "x": 0.8586892070901408,
+        "y": 3.316293446035451
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": null
+    }
+  ],
+  "rotationTargets": [
+    {
+      "waypointRelativePos": 0.9734439834024842,
+      "rotationDegrees": 90.0
+    },
+    {
+      "waypointRelativePos": 2.2979253112033122,
+      "rotationDegrees": 90.0
+    }
+  ],
+  "constraintZones": [],
+  "pointTowardsZones": [],
+  "eventMarkers": [
+    {
+      "name": "IntakeRun",
+      "waypointRelativePos": 0,
+      "endWaypointRelativePos": 2.480397022332471,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "IntakeRun"
+        }
+      }
+    },
+    {
+      "name": "SpinUp",
+      "waypointRelativePos": 0,
+      "endWaypointRelativePos": null,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "SpinUp"
+        }
+      }
+    }
+  ],
+  "globalConstraints": {
+    "maxVelocity": 2.0,
+    "maxAcceleration": 2.0,
+    "maxAngularVelocity": 560.0,
+    "maxAngularAcceleration": 720.0,
+    "nominalVoltage": 12.0,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": 2.1386825776663008
+  },
+  "reversed": false,
+  "folder": "robocon",
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": 0.0
+  },
+  "useDefaultConstraints": false
+}

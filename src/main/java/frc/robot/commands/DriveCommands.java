@@ -33,6 +33,10 @@ import java.util.function.Supplier;
 
 public class DriveCommands {
   private static final double DEADBAND = 0.1;
+  // driveToPoint: proportional approach speed per meter of error, capped, plus the stop tolerance
+  private static final double POINT_KP = 3.0; // (m/s) per m
+  private static final double POINT_MAX_SPEED_METERS_PER_SEC = 1.5;
+  private static final double POINT_TOLERANCE_METERS = 0.03;
   // Teleop translation speed cap as a fraction of the drivetrain's max (full stick = this x max).
   // Applies to all joystick driving, including aim-and-shoot; autonomous paths are unaffected.
   private static final double TELEOP_LINEAR_SPEED_SCALAR = 0.75;
@@ -167,6 +171,43 @@ public class DriveCommands {
 
         // Reset PID controller when command starts
         .beforeStarting(() -> angleController.reset(drive.getRotation().getRadians()));
+  }
+
+  /**
+   * Drives straight to a field position (translation only is the goal) while turning toward the
+   * supplied heading, ending once within {@code POINT_TOLERANCE_METERS}. Used to finish a path that
+   * ended short of or past its stop point — PathPlanner ends a path on time, not on arrival.
+   */
+  public static Command driveToPoint(
+      Drive drive, Translation2d target, Supplier<Rotation2d> rotationSupplier) {
+    ProfiledPIDController angleController =
+        new ProfiledPIDController(
+            ANGLE_KP,
+            0.0,
+            ANGLE_KD,
+            new TrapezoidProfile.Constraints(ANGLE_MAX_VELOCITY, ANGLE_MAX_ACCELERATION));
+    angleController.enableContinuousInput(-Math.PI, Math.PI);
+
+    return Commands.run(
+            () -> {
+              Translation2d error = target.minus(drive.getPose().getTranslation());
+              double distance = error.getNorm();
+              double speed = Math.min(POINT_KP * distance, POINT_MAX_SPEED_METERS_PER_SEC);
+              Translation2d velocity =
+                  distance > 1e-6 ? error.times(speed / distance) : Translation2d.kZero;
+              double omega =
+                  angleController.calculate(
+                      drive.getRotation().getRadians(), rotationSupplier.get().getRadians());
+              // Field frame is the blue-origin pose frame here (no driver-perspective flip)
+              drive.runVelocity(
+                  ChassisSpeeds.fromFieldRelativeSpeeds(
+                      velocity.getX(), velocity.getY(), omega, drive.getRotation()));
+            },
+            drive)
+        .beforeStarting(() -> angleController.reset(drive.getRotation().getRadians()))
+        .until(() -> drive.getPose().getTranslation().getDistance(target) < POINT_TOLERANCE_METERS)
+        .finallyDo(drive::stop)
+        .withName("DriveToPoint");
   }
 
   /**

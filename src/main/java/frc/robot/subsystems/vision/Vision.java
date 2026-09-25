@@ -211,7 +211,10 @@ public class Vision extends SubsystemBase {
           consumer.accept(
               observation.pose().toPose2d(),
               observation.timestamp(),
-              VecBuilder.fill(linearStdDev, linearStdDev, angularStdDev));
+              VecBuilder.fill(
+                  linearStdDev,
+                  linearStdDev,
+                  useVisionHeading ? angularStdDev : Double.POSITIVE_INFINITY));
           lastAcceptedPoseTimestamp = Timer.getTimestamp();
         }
 

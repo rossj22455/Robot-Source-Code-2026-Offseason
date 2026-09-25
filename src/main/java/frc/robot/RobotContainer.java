@@ -58,6 +58,7 @@ import frc.robot.subsystems.vision.VisionIOPhotonVision;
 import frc.robot.subsystems.vision.VisionIOPhotonVisionSim;
 import frc.robot.util.RobotVisualizer;
 import frc.robot.util.ShotOnMoveSolver;
+import java.util.Set;
 import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.Arena2026Rebuilt;
@@ -256,8 +257,10 @@ public class RobotContainer {
     // event zones or deadline groups (it never ends on its own).
     NamedCommands.registerCommand(
         "Shoot",
-        aimAndShootCommand(() -> 0.0, () -> 0.0)
-            .withTimeout(Constants.Shooter.AUTO_SHOOT_TIMEOUT_SECS));
+        Commands.sequence(
+            finishPathCommand(),
+            aimAndShootCommand(() -> 0.0, () -> 0.0)
+                .withTimeout(Constants.Shooter.AUTO_SHOOT_TIMEOUT_SECS)));
     NamedCommands.registerCommand("IntakeRun", intake.intakeCommand());
     NamedCommands.registerCommand("IntakeStop", Commands.runOnce(intake::stopRollers, intake));
     NamedCommands.registerCommand("IntakeRetract", retractWithStagingCommand());
@@ -466,6 +469,29 @@ public class RobotContainer {
   private Command retractWithStagingCommand() {
     return Commands.deadline(intake.retractCommand(), indexer.stageCommand())
         .withName("RetractWithStaging");
+  }
+
+  /**
+   * Drives to where the most recent path meant to stop, turning toward the target on the way, so
+   * the auto shot fires from the planned spot even if the path overshot or fell short. No-op if no
+   * path has run or the robot is implausibly far from that spot.
+   */
+  private Command finishPathCommand() {
+    return Commands.defer(
+            () -> {
+              var target = drive.getLastPathTargetPose();
+              if (target.isEmpty()
+                  || target.get().getTranslation().getDistance(drive.getPose().getTranslation())
+                      > Constants.Shooter.FINISH_PATH_MAX_DISTANCE_METERS) {
+                return Commands.none();
+              }
+              Logger.recordOutput("Auto/FinishPathTarget", target.get());
+              return DriveCommands.driveToPoint(
+                      drive, target.get().getTranslation(), this::getTargetHeading)
+                  .withTimeout(Constants.Shooter.FINISH_PATH_TIMEOUT_SECS);
+            },
+            Set.of(drive))
+        .withName("FinishPath");
   }
 
   private Command shootCommand() {

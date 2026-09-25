@@ -15,6 +15,7 @@ import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import com.pathplanner.lib.pathfinding.Pathfinding;
+import com.pathplanner.lib.util.FlippingUtil;
 import com.pathplanner.lib.util.PathPlannerLogging;
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
@@ -130,6 +131,9 @@ public class Drive extends SubsystemBase {
   // addVisionMeasurement)
   private boolean visionHeadingSeeded = false;
   private double visionSnapRequestTimestamp = 0.0;
+  // Most recent PathPlanner setpoint (already alliance-flipped). When a path finishes this is its
+  // end pose, which the auto Shoot drives to before firing (see getLastPathTargetPose)
+  private Pose2d lastPathTargetPose = null;
 
   private SwerveModulePosition[] lastModulePositions = // For delta tracking
       new SwerveModulePosition[] {
@@ -173,6 +177,14 @@ public class Drive extends SubsystemBase {
     // Start odometry thread
     PhoenixOdometryThread.getInstance().start();
 
+    // PathPlanner mirrors blue paths onto the red side using the field size, which defaults to the
+    // stock 2026 field (16.54 m). The RoboCon field is shorter (~14.68 m), so without this every
+    // red
+    // pose lands ~1.86 m too far toward the red wall. Use the custom map's dimensions instead (the
+    // map is rotationally symmetric, matching PathPlanner's default flip).
+    FlippingUtil.fieldSizeX = VisionConstants.aprilTagLayout.getFieldLength();
+    FlippingUtil.fieldSizeY = VisionConstants.aprilTagLayout.getFieldWidth();
+
     // Configure AutoBuilder for PathPlanner
     AutoBuilder.configure(
         this::getPose,
@@ -192,6 +204,7 @@ public class Drive extends SubsystemBase {
     PathPlannerLogging.setLogTargetPoseCallback(
         (targetPose) -> {
           Logger.recordOutput("Odometry/TrajectorySetpoint", targetPose);
+          lastPathTargetPose = targetPose;
         });
 
     // Configure SysId
@@ -402,6 +415,15 @@ public class Drive extends SubsystemBase {
     // A reset (driver heading button, auto start) is only as accurate as the robot's placement, so
     // let the next good multitag measurement re-establish the heading precisely
     visionHeadingSeeded = false;
+    lastPathTargetPose = null; // A new pose frame; old path setpoints no longer apply
+  }
+
+  /**
+   * The last setpoint PathPlanner commanded (field frame, alliance-flipped) — after a path ends,
+   * where that path meant the robot to stop. Empty if no path has run since the last pose reset.
+   */
+  public Optional<Pose2d> getLastPathTargetPose() {
+    return Optional.ofNullable(lastPathTargetPose);
   }
 
   /**

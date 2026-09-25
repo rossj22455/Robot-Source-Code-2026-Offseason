@@ -3,13 +3,13 @@
   "waypoints": [
     {
       "anchor": {
-        "x": 3.7991132493750293,
-        "y": 7.619499080232065
+        "x": 3.8048823566517385,
+        "y": 7.606535040686305
       },
       "prevControl": null,
       "nextControl": {
-        "x": 6.03853591811707,
-        "y": 7.401018819866987
+        "x": 6.044305025393779,
+        "y": 7.3880547803212275
       },
       "isLocked": false,
       "linkedName": "startL"
@@ -116,8 +116,8 @@
   "pointTowardsZones": [],
   "eventMarkers": [],
   "globalConstraints": {
-    "maxVelocity": 4.25,
-    "maxAcceleration": 3.25,
+    "maxVelocity": 3.5,
+    "maxAcceleration": 2.75,
     "maxAngularVelocity": 560.0,
     "maxAngularAcceleration": 720.0,
     "nominalVoltage": 12.0,
@@ -128,7 +128,7 @@
     "rotation": -51.04598478907765
   },
   "reversed": false,
-  "folder": "robocon",
+  "folder": "bump",
   "idealStartingState": {
     "velocity": 0,
     "rotation": 90.0

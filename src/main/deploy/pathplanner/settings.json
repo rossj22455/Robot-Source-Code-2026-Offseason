@@ -3,14 +3,14 @@
   "robotLength": 0.9271,
   "holonomicMode": true,
   "pathFolders": [
-    "Bump",
     "robocon",
     "noblup",
+    "bump",
     "supsecret"
   ],
   "autoFolders": [],
-  "defaultMaxVel": 4.25,
-  "defaultMaxAccel": 3.25,
+  "defaultMaxVel": 3.5,
+  "defaultMaxAccel": 2.75,
   "defaultMaxAngVel": 560.0,
   "defaultMaxAngAccel": 720.0,
   "defaultNominalVoltage": 12.0,

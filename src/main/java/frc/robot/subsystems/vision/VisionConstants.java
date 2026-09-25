@@ -129,6 +129,12 @@ public class VisionConstants {
   public static double linearStdDevBaseline = 0.02; // Meters
   public static double angularStdDevBaseline = 0.06; // Radians
 
+  // Whether multitag vision may correct the robot HEADING (it always corrects position). OFF until
+  // the camera calibration passes the squared-to-hub check (heading reads ~180 deg, pitch/roll ~0):
+  // with a bad calibration, vision heading is several degrees off and yanks the heading mid-path.
+  // While off, heading comes from the auto start pose / heading button + gyro, which are accurate.
+  public static boolean useVisionHeading = false;
+
   // Vision heading seed: the first multitag measurement after boot or a pose reset whose heading
   // std dev is at most this (radians) sets the heading outright. With the baseline above, 0.3 rad
   // is two tags within ~3.2 m or four tags within ~4.5 m. PLACEHOLDER — tune.

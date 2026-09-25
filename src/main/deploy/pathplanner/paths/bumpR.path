@@ -3,54 +3,144 @@
   "waypoints": [
     {
       "anchor": {
-        "x": 4.399053571428571,
-        "y": 0.45558928571428625
+        "x": 3.775663912193276,
+        "y": 0.5064530372800111
       },
       "prevControl": null,
       "nextControl": {
-        "x": 5.399053571428571,
-        "y": 0.45558928571428625
+        "x": 5.984195105003212,
+        "y": 0.6445123446014179
       },
       "isLocked": false,
       "linkedName": null
     },
     {
       "anchor": {
-        "x": 7.670732142857142,
-        "y": 1.2168214285714283
+        "x": 6.298189617107171,
+        "y": 0.8960322967261726
       },
       "prevControl": {
-        "x": 7.557357142857143,
-        "y": 0.5527678571428578
+        "x": 6.099725964016679,
+        "y": 0.7440053964684331
       },
       "nextControl": {
-        "x": 7.784107142857142,
-        "y": 1.8808749999999987
+        "x": 6.658165876799633,
+        "y": 1.1717808989272345
       },
       "isLocked": false,
       "linkedName": null
     },
     {
       "anchor": {
-        "x": 7.670732142857142,
-        "y": 3.597696428571428
+        "x": 6.648810950608718,
+        "y": 3.5451712609600707
       },
       "prevControl": {
-        "x": 7.767910714285712,
-        "y": 2.7878749999999997
+        "x": 7.440326832410902,
+        "y": 3.502455175011808
       },
-      "nextControl": null,
+      "nextControl": {
+        "x": 5.531243111359149,
+        "y": 3.605483536395031
+      },
       "isLocked": false,
       "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 5.509291616728695,
+        "y": 2.4056519270800485
+      },
+      "prevControl": {
+        "x": 6.07418154292563,
+        "y": 2.4153914085662023
+      },
+      "nextControl": {
+        "x": 4.571958400249068,
+        "y": 2.389491009554538
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 2.579,
+        "y": 2.4056519270800485
+      },
+      "prevControl": {
+        "x": 3.3206718204208796,
+        "y": 2.426725346080056
+      },
+      "nextControl": null,
+      "isLocked": true,
+      "linkedName": "Rfire"
     }
   ],
-  "rotationTargets": [],
-  "constraintZones": [],
+  "rotationTargets": [
+    {
+      "waypointRelativePos": 1.2248962655601499,
+      "rotationDegrees": -117.07289779435439
+    },
+    {
+      "waypointRelativePos": 1.5701244813278061,
+      "rotationDegrees": -101.2680262696564
+    },
+    {
+      "waypointRelativePos": 2.021576763485467,
+      "rotationDegrees": -25.20653099854644
+    },
+    {
+      "waypointRelativePos": 3.010788381742748,
+      "rotationDegrees": 104.0
+    },
+    {
+      "waypointRelativePos": 3.8074688796680474,
+      "rotationDegrees": 104.0
+    }
+  ],
+  "constraintZones": [
+    {
+      "name": "Constraints Zone",
+      "minWaypointRelativePos": 0.9885856079404529,
+      "maxWaypointRelativePos": 2.1399503722084474,
+      "constraints": {
+        "maxVelocity": 2.0,
+        "maxAcceleration": 3.25,
+        "maxAngularVelocity": 560.0,
+        "maxAngularAcceleration": 720.0,
+        "nominalVoltage": 12.0,
+        "unlimited": false
+      }
+    }
+  ],
   "pointTowardsZones": [],
-  "eventMarkers": [],
+  "eventMarkers": [
+    {
+      "name": "IntakeRun",
+      "waypointRelativePos": 0.6153846153846361,
+      "endWaypointRelativePos": 3.092803970223296,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "IntakeRun"
+        }
+      }
+    },
+    {
+      "name": "SpinUp",
+      "waypointRelativePos": 3.402481389578149,
+      "endWaypointRelativePos": null,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "SpinUp"
+        }
+      }
+    }
+  ],
   "globalConstraints": {
-    "maxVelocity": 4.25,
-    "maxAcceleration": 3.25,
+    "maxVelocity": 3.5,
+    "maxAcceleration": 2.75,
     "maxAngularVelocity": 560.0,
     "maxAngularAcceleration": 720.0,
     "nominalVoltage": 12.0,
@@ -58,13 +148,13 @@
   },
   "goalEndState": {
     "velocity": 0,
-    "rotation": -90.0
+    "rotation": 53.297144969836886
   },
   "reversed": false,
-  "folder": "Bump",
+  "folder": "robocon",
   "idealStartingState": {
     "velocity": 0,
-    "rotation": -88.56790381583534
+    "rotation": -90.0
   },
   "useDefaultConstraints": true
 }
