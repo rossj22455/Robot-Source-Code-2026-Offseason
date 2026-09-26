@@ -1,0 +1,33 @@
+{
+  "version": "2025.0",
+  "command": {
+    "type": "sequential",
+    "data": {
+      "commands": [
+        {
+          "type": "deadline",
+          "data": {
+            "commands": [
+              {"type": "path", "data": {"pathName": "DoubleSwipeCollection"}},
+              {"type": "named", "data": {"name": "IntakeRun"}}
+            ]
+          }
+        },
+        {
+          "type": "parallel",
+          "data": {
+            "commands": [
+              {"type": "path", "data": {"pathName": "DoubleSwipeReturn"}},
+              {"type": "named", "data": {"name": "SpinUp"}}
+            ]
+          }
+        },
+        {"type": "named", "data": {"name": "IntakeStop"}},
+        {"type": "named", "data": {"name": "Shoot"}}
+      ]
+    }
+  },
+  "resetOdom": true,
+  "folder": null,
+  "choreoAuto": false
+}
