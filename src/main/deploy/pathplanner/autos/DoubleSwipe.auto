@@ -5,25 +5,43 @@
     "data": {
       "commands": [
         {
-          "type": "deadline",
+          "type": "sequential",
           "data": {
             "commands": [
-              {"type": "path", "data": {"pathName": "DoubleSwipeCollection"}},
-              {"type": "named", "data": {"name": "IntakeRun"}}
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "DoubleSwipeCollection"
+                }
+              }
             ]
           }
         },
         {
-          "type": "parallel",
+          "type": "named",
+          "data": {
+            "name": "Shoot"
+          }
+        },
+        {
+          "type": "sequential",
           "data": {
             "commands": [
-              {"type": "path", "data": {"pathName": "DoubleSwipeReturn"}},
-              {"type": "named", "data": {"name": "SpinUp"}}
+              {
+                "type": "path",
+                "data": {
+                  "pathName": "New Path"
+                }
+              }
             ]
           }
         },
-        {"type": "named", "data": {"name": "IntakeStop"}},
-        {"type": "named", "data": {"name": "Shoot"}}
+        {
+          "type": "named",
+          "data": {
+            "name": "Shoot"
+          }
+        }
       ]
     }
   },
