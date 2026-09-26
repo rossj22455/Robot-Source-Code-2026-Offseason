@@ -26,6 +26,7 @@ import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.subsystems.vision.VisionIO.PoseObservation;
+import frc.robot.util.EventLog;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -53,6 +54,7 @@ public class Vision extends SubsystemBase {
 
   private double lastAcceptedPoseTimestamp = Double.NEGATIVE_INFINITY;
   private final String[] lastRejectReasons;
+  private final boolean[] lastConnected;
 
   // Indexed to match the IO array order in RobotContainer
   private static final Transform3d[] robotToCameraTransforms = {
@@ -75,6 +77,7 @@ public class Vision extends SubsystemBase {
       inputs[i] = new VisionIOInputsAutoLogged();
     }
 
+    this.lastConnected = new boolean[io.length];
     this.lastRejectReasons = new String[io.length];
     Arrays.fill(lastRejectReasons, "none");
 
@@ -164,8 +167,15 @@ public class Vision extends SubsystemBase {
 
     // Loop over cameras
     for (int cameraIndex = 0; cameraIndex < io.length; cameraIndex++) {
-      // Update disconnected alert
+      // Update disconnected alert (+ an event on each change, for post-match review)
       disconnectedAlerts[cameraIndex].set(!inputs[cameraIndex].connected);
+      if (inputs[cameraIndex].connected != lastConnected[cameraIndex]) {
+        EventLog.log(
+            "Vision camera "
+                + cameraIndex
+                + (inputs[cameraIndex].connected ? " connected" : " DISCONNECTED"));
+        lastConnected[cameraIndex] = inputs[cameraIndex].connected;
+      }
 
       // Initialize logging values
       List<Pose3d> tagPoses = new LinkedList<>();

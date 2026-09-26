@@ -19,6 +19,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.util.EventLog;
 import org.littletonrobotics.junction.Logger;
 
 /**
@@ -181,6 +182,7 @@ public class Intake extends SubsystemBase {
           // the intake command first deploys it.
           linearIO.setVoltage(0.0);
           linearIO.zeroPosition();
+          EventLog.log("Intake homed (re-zeroed at hardstop)");
           goalMeters = LINEAR_RETRACTED_POSITION_METERS;
           linearController.reset(LINEAR_RETRACTED_POSITION_METERS);
           linearState = LinearState.RUNNING;
@@ -188,6 +190,7 @@ public class Intake extends SubsystemBase {
           // Failed attempt: keep the previous zero rather than disabling position control
           linearIO.setVoltage(0.0);
           homingFailed = true;
+          EventLog.log("Intake homing TIMED OUT (kept previous zero)");
           linearState = stateBeforeHoming;
           linearController.reset(linearInputs.positionMeters);
         }

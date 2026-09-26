@@ -133,7 +133,7 @@ public class VisionConstants {
   // the camera calibration passes the squared-to-hub check (heading reads ~180 deg, pitch/roll ~0):
   // with a bad calibration, vision heading is several degrees off and yanks the heading mid-path.
   // While off, heading comes from the auto start pose / heading button + gyro, which are accurate.
-  public static boolean useVisionHeading = false;
+  public static boolean useVisionHeading = true;
 
   // Vision heading seed: the first multitag measurement after boot or a pose reset whose heading
   // std dev is at most this (radians) sets the heading outright. With the baseline above, 0.3 rad
