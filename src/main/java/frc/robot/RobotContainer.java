@@ -206,12 +206,6 @@ public class RobotContainer {
                 indexer::getAppliedVolts,
                 shooter::simNotifyBallFired);
 
-        // Automated self-test: with SIM_TEST=1 the robot enables itself (see Robot) and runs a
-        // scripted homing -> intake -> shoot sequence, printing [SIMTEST] markers for CI/log
-        // inspection
-        if ("1".equals(System.getenv("SIM_TEST"))) {
-          configureSimTestSequence();
-        }
         break;
 
       default:
@@ -276,6 +270,10 @@ public class RobotContainer {
     autoChooser.addOption(
         "Example Path (Tilt Recovery)",
         TiltRecoveryCommands.recoverableAuto(drive, "Example Path"));
+    if (Constants.currentMode == Constants.Mode.SIM
+        && "1".equals(System.getenv("SIM_TEST"))) {
+      configureSimTestSequence();
+    }
 
     // Set up SysId routines
     autoChooser.addOption(

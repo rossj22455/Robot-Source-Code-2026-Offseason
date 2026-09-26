@@ -7,13 +7,14 @@ AdvantageScope.
 ## Running the simulation
 
 ```powershell
-$env:JAVA_HOME = 'C:\Users\Public\wpilib\2026\jdk'   # system Java is too old
+$env:JAVA_HOME = 'C:\Users\Public\wpilib\2026\jdk'   # use the WPILib JDK
+$env:SIM_GUI = '1'                                      # open the sim + Driver Station windows
 ./gradlew simulateJava
 ```
 
 Connect AdvantageScope to `localhost` (NT4). Use the sim GUI (or a real gamepad on port 0) to
-enable and drive. Note `build.gradle` disables the sim GUI by default for replay compatibility —
-run with the DS/sim GUI enabled as needed.
+enable and drive. The GUI stays disabled by default for replay compatibility; set `SIM_GUI=1` to
+open it.
 
 ### Automated self-test
 
