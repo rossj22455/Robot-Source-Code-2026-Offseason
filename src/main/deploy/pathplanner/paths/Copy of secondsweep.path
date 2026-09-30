@@ -1,0 +1,147 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 2.1279548289280084,
+        "y": 5.73128888424166
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 1.2813438200133347,
+        "y": 7.306780368137293
+      },
+      "isLocked": false,
+      "linkedName": "Lfire"
+    },
+    {
+      "anchor": {
+        "x": 4.489012048192771,
+        "y": 7.51001204819277
+      },
+      "prevControl": {
+        "x": 2.688505259185887,
+        "y": 7.665015801141456
+      },
+      "nextControl": {
+        "x": 5.709088429493935,
+        "y": 7.4049769441096345
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 6.193292769208998,
+        "y": 6.845714824772417
+      },
+      "prevControl": {
+        "x": 5.983702081207348,
+        "y": 7.4242443608912145
+      },
+      "nextControl": {
+        "x": 6.336605689093958,
+        "y": 6.450130660936743
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 5.801848969388235,
+        "y": 4.578982123484741
+      },
+      "prevControl": {
+        "x": 4.566176492550077,
+        "y": 5.191571091553769
+      },
+      "nextControl": {
+        "x": 7.153944994484888,
+        "y": 3.908675772675994
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 6.457289750483467,
+        "y": 5.780623555492665
+      },
+      "prevControl": {
+        "x": 7.7085914609093305,
+        "y": 5.965379512736751
+      },
+      "nextControl": {
+        "x": 5.100891467383613,
+        "y": 5.580349983491344
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 2.1279548289280084,
+        "y": 5.73128888424166
+      },
+      "prevControl": {
+        "x": 3.7202363664557754,
+        "y": 5.880144061486962
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": "Lfire"
+    }
+  ],
+  "rotationTargets": [
+    {
+      "waypointRelativePos": 0.8208955223880543,
+      "rotationDegrees": 180.0
+    },
+    {
+      "waypointRelativePos": 1.1300639658848577,
+      "rotationDegrees": 180.0
+    },
+    {
+      "waypointRelativePos": 2.0240663900414932,
+      "rotationDegrees": 97.35074970966608
+    },
+    {
+      "waypointRelativePos": 2.6854771784232567,
+      "rotationDegrees": 79.14702966294351
+    },
+    {
+      "waypointRelativePos": 3.2962655601659683,
+      "rotationDegrees": -121.66372653216635
+    },
+    {
+      "waypointRelativePos": 3.946058091286308,
+      "rotationDegrees": -104.0
+    },
+    {
+      "waypointRelativePos": 4.937106918238994,
+      "rotationDegrees": -104.0
+    }
+  ],
+  "constraintZones": [],
+  "pointTowardsZones": [],
+  "eventMarkers": [],
+  "globalConstraints": {
+    "maxVelocity": 3.5,
+    "maxAcceleration": 2.75,
+    "maxAngularVelocity": 560.0,
+    "maxAngularAcceleration": 720.0,
+    "nominalVoltage": 12.0,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": -42.86453655762335
+  },
+  "reversed": false,
+  "folder": "bump",
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": -42.86453655762335
+  },
+  "useDefaultConstraints": true
+}

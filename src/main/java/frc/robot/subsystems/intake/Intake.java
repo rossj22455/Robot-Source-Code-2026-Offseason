@@ -19,18 +19,21 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.util.EventLog;
 import org.littletonrobotics.junction.Logger;
 
 /**
  * Intake with a linear rack articulation (NEO, RIO-side profiled PID) and a dual-roller bar (NEO
  * master + inverted hardware follower).
  *
- * <p>Linear articulation lifecycle: the mechanism homes only when the driver holds the home button
- * (never automatically on enable, so the slide can't surprise anyone with motion at match start).
- * Homing drives slowly into the retracted hardstop until a stall (current rise + velocity
- * stagnation) is detected, then zeros the encoder. Position control is unavailable until homing
- * succeeds. While holding position against the hardstop, the smart current limit is dropped heavily
- * to protect the NEO; it is restored while moving.
+ * <p>Linear articulation lifecycle: the robot is powered on with the intake all the way IN, where
+ * the SparkMax encoder reads 0, so position control is active from boot — no homing required. The
+ * encoder reading is trusted as-is (it only resets on power-up, so after a code redeploy it still
+ * knows where the slide really is), and the slide holds its boot position until commanded. Homing
+ * is optional: holding the home button drives slowly into the retracted hardstop until a stall
+ * (current rise + velocity stagnation) is detected, then re-zeros the encoder. While holding
+ * position against the hardstop, the smart current limit is dropped heavily to protect the NEO; it
+ * is restored while moving.
  */
 public class Intake extends SubsystemBase {
   /** Linear articulation state machine. */
@@ -57,8 +60,13 @@ public class Intake extends SubsystemBase {
               LINEAR_MAX_VELOCITY_METERS_PER_SEC, LINEAR_MAX_ACCELERATION_METERS_PER_SEC_SQ));
   private final Debouncer stallDebouncer = new Debouncer(HOMING_STALL_DEBOUNCE_SECS);
   private final Timer homingTimer = new Timer();
+  // Times each herding stroke so a blocked stroke still reverses (AGGREGATE_STROKE_TIMEOUT_SECS)
+  private final Timer strokeTimer = new Timer();
 
-  private LinearState linearState = LinearState.UNHOMED;
+  // Starts RUNNING: the intake is assumed to be powered on all the way in (encoder = 0)
+  private LinearState linearState = LinearState.RUNNING;
+  // The boot goal is seeded from the first encoder reading (hold where it is, no surprise motion)
+  private boolean bootGoalSeeded = false;
   // Boots RETRACTED and deploys only when the intake command is first issued. Once deployed it
   // stays out until explicitly retracted (or restored by the aggregation sweep).
   private double goalMeters = LINEAR_RETRACTED_POSITION_METERS;
@@ -68,10 +76,10 @@ public class Intake extends SubsystemBase {
   private boolean homingFailed = false;
   // State to fall back to if a homing attempt is aborted (home button released early), so an
   // aborted re-home leaves an already-homed slide homed instead of dropping it to UNHOMED
-  private LinearState stateBeforeHoming = LinearState.UNHOMED;
+  private LinearState stateBeforeHoming = LinearState.RUNNING;
 
-  // Firing aggregation: sweep in slowly, then shutter between retracted and SHUTTER_OUT to herd
-  // balls; the pre-aggregation posture is restored afterward
+  // Firing aggregation: pulse slowly between SHUTTER_IN and SHUTTER_OUT with the rollers turning
+  // gently inward to herd balls; the pre-aggregation posture is restored afterward
   private static final TrapezoidProfile.Constraints NORMAL_CONSTRAINTS =
       new TrapezoidProfile.Constraints(
           LINEAR_MAX_VELOCITY_METERS_PER_SEC, LINEAR_MAX_ACCELERATION_METERS_PER_SEC_SQ);
@@ -89,11 +97,11 @@ public class Intake extends SubsystemBase {
 
   private final Alert notHomedAlert =
       new Alert(
-          "Intake NOT HOMED — hold the home button (D-pad Down) before deploying.",
+          "Intake NOT HOMED — hold the home button (D-pad Down) to re-zero it.",
           AlertType.kWarning);
   private final Alert homingFailedAlert =
       new Alert(
-          "Intake homing timed out; position control disabled — hold the home button to retry.",
+          "Intake homing timed out; still using the previous zero — hold the home button to retry.",
           AlertType.kError);
   private final Alert linearDisconnectedAlert =
       new Alert("Intake linear motor is disconnected.", AlertType.kError);
@@ -140,6 +148,14 @@ public class Intake extends SubsystemBase {
       appliedBrakeMode = wantBrake;
     }
 
+    // First loop after boot: hold wherever the encoder says the slide is (0 when powered on with
+    // the intake in), so enabling never causes surprise motion
+    if (!bootGoalSeeded) {
+      bootGoalSeeded = true;
+      setGoalMeters(linearInputs.positionMeters);
+      linearController.reset(goalMeters);
+    }
+
     switch (linearState) {
       case UNHOMED -> {
         // Hold still and wait for an explicit homing request (homeCommand). The slide never moves
@@ -150,9 +166,10 @@ public class Intake extends SubsystemBase {
 
       case HOMING -> {
         if (!enabled) {
-          // Abort cleanly; retry on the next enable
+          // Abort cleanly back to the pre-homing state (normally RUNNING on the boot zero)
           linearIO.setVoltage(0.0);
-          linearState = LinearState.UNHOMED;
+          linearState = stateBeforeHoming;
+          linearController.reset(linearInputs.positionMeters);
           break;
         }
 
@@ -167,13 +184,17 @@ public class Intake extends SubsystemBase {
           // the intake command first deploys it.
           linearIO.setVoltage(0.0);
           linearIO.zeroPosition();
+          EventLog.log("Intake homed (re-zeroed at hardstop)");
           goalMeters = LINEAR_RETRACTED_POSITION_METERS;
           linearController.reset(LINEAR_RETRACTED_POSITION_METERS);
           linearState = LinearState.RUNNING;
         } else if (homingTimer.hasElapsed(HOMING_TIMEOUT_SECS)) {
+          // Failed attempt: keep the previous zero rather than disabling position control
           linearIO.setVoltage(0.0);
           homingFailed = true;
-          linearState = LinearState.UNHOMED;
+          EventLog.log("Intake homing TIMED OUT (kept previous zero)");
+          linearState = stateBeforeHoming;
+          linearController.reset(linearInputs.positionMeters);
         }
       }
 
@@ -183,13 +204,21 @@ public class Intake extends SubsystemBase {
           linearController.reset(linearInputs.positionMeters);
           linearIO.setVoltage(0.0);
         } else {
-          // Firing aggregation: once the current stroke settles, reverse direction (shutter)
-          if (aggregating && linearController.atGoal()) {
+          // Firing aggregation: reverse direction (shutter) once the stroke reaches its end, or
+          // after the stroke timeout if balls are blocking it, so the pulse never stalls
+          if (aggregating
+              && (linearController.atGoal()
+                  || strokeTimer.hasElapsed(AGGREGATE_STROKE_TIMEOUT_SECS))) {
             shutterOut = !shutterOut;
-            setGoalMeters(
-                shutterOut ? SHUTTER_OUT_POSITION_METERS : LINEAR_RETRACTED_POSITION_METERS);
+            setGoalMeters(shutterOut ? SHUTTER_OUT_POSITION_METERS : SHUTTER_IN_POSITION_METERS);
+            strokeTimer.restart();
           }
           double outputVolts = linearController.calculate(linearInputs.positionMeters, goalMeters);
+          // Herding push: extra voltage toward the stroke's end so the slide drives through balls
+          double strokeError = goalMeters - linearInputs.positionMeters;
+          if (aggregating && Math.abs(strokeError) > LINEAR_POSITION_TOLERANCE_METERS) {
+            outputVolts += Math.copySign(AGGREGATE_PUSH_VOLTS, strokeError);
+          }
           linearIO.setVoltage(MathUtil.clamp(outputVolts, -12.0, 12.0));
         }
       }
@@ -292,9 +321,9 @@ public class Intake extends SubsystemBase {
   }
 
   /**
-   * Begins the firing aggregation sweep: the intake slowly comes fully in to herd balls, then
-   * shutters between retracted and partially-out until {@link #stopAggregating()}. Idempotent —
-   * safe to call every loop from a running command.
+   * Begins the firing aggregation pulse: the intake slowly comes in to SHUTTER_IN, back out to
+   * SHUTTER_OUT, and repeats until {@link #stopAggregating()}, with the rollers turning gently
+   * inward the whole time. Idempotent — safe to call every loop from a running command.
    */
   public void startAggregating() {
     if (!aggregating) {
@@ -302,7 +331,9 @@ public class Intake extends SubsystemBase {
       shutterOut = false;
       preAggregationGoalMeters = goalMeters;
       linearController.setConstraints(AGGREGATE_CONSTRAINTS);
-      setGoalMeters(LINEAR_RETRACTED_POSITION_METERS);
+      setGoalMeters(SHUTTER_IN_POSITION_METERS);
+      strokeTimer.restart();
+      runRollers(ROLLER_RETRACT_VOLTS);
     }
   }
 
@@ -310,6 +341,7 @@ public class Intake extends SubsystemBase {
   public void stopAggregating() {
     if (aggregating) {
       aggregating = false;
+      stopRollers();
       linearController.setConstraints(NORMAL_CONSTRAINTS);
       setGoalMeters(preAggregationGoalMeters);
     }
@@ -344,7 +376,13 @@ public class Intake extends SubsystemBase {
 
   /** Command: explicitly stow the intake (the only way it retracts and stays in). */
   public Command retractCommand() {
-    return runOnce(this::retract).withName("IntakeRetract");
+    // Rollers keep turning gently inward while the slide travels home, so balls on the edge get
+    // pulled in rather than pinched; ends once home (or after the timeout)
+    return runOnce(this::retract)
+        .andThen(run(() -> runRollers(ROLLER_RETRACT_VOLTS)).until(this::isAtGoal))
+        .withTimeout(RETRACT_ASSIST_TIMEOUT_SECS)
+        .finallyDo(this::stopRollers)
+        .withName("IntakeRetract");
   }
 
   /**
@@ -357,6 +395,7 @@ public class Intake extends SubsystemBase {
     return runOnce(
             () -> {
               aggregating = false;
+              stopRollers(); // The aggregation pulse runs them; an emergency stow stops them
               linearController.setConstraints(FAST_CONSTRAINTS);
               setGoalMeters(LINEAR_RETRACTED_POSITION_METERS);
             })

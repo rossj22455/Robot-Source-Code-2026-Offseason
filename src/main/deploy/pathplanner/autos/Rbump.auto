@@ -7,7 +7,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "NewbumpL"
+            "pathName": "bumpR"
           }
         },
         {
@@ -19,7 +19,13 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Endpath"
+            "pathName": "secondsweepR"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "Shoot"
           }
         }
       ]

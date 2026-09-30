@@ -19,14 +19,16 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.math.filter.Debouncer;
 
 /**
- * IO implementation for the dual-roller NEOs on SparkMax controllers. The follower is configured as
- * a hardware-level inverted follower of the master, so it tracks the master with no RIO involvement
- * even if the RIO code stops running.
+ * IO implementation for the roller NEOs on SparkMax controllers. The optional second motor (see
+ * ROLLER_FOLLOWER_INSTALLED) is configured as a hardware-level inverted follower of the master, so
+ * it tracks the master with no RIO involvement even if the RIO code stops running.
  */
 public class IntakeRollerIOSparkMax implements IntakeRollerIO {
   // Protected so the sim subclass can wrap the devices in SparkMaxSims
   protected final SparkMax master = new SparkMax(ROLLER_MASTER_ID, MotorType.kBrushless);
-  protected final SparkMax follower = new SparkMax(ROLLER_FOLLOWER_ID, MotorType.kBrushless);
+  // Null when the second roller motor isn't installed (no controller on the CAN bus to talk to)
+  protected final SparkMax follower =
+      ROLLER_FOLLOWER_INSTALLED ? new SparkMax(ROLLER_FOLLOWER_ID, MotorType.kBrushless) : null;
   private final RelativeEncoder encoder = master.getEncoder();
   private final Debouncer connectedDebouncer = new Debouncer(0.5);
 
@@ -34,18 +36,21 @@ public class IntakeRollerIOSparkMax implements IntakeRollerIO {
     var masterConfig = new SparkMaxConfig();
     masterConfig
         .idleMode(IdleMode.kCoast)
+        .inverted(true)
         .smartCurrentLimit(ROLLER_CURRENT_LIMIT_AMPS)
         .voltageCompensation(12.0);
     master.configure(masterConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
-    var followerConfig = new SparkMaxConfig();
-    followerConfig
-        .idleMode(IdleMode.kCoast)
-        .smartCurrentLimit(ROLLER_CURRENT_LIMIT_AMPS)
-        .voltageCompensation(12.0)
-        .follow(ROLLER_MASTER_ID, true); // Hardware-level follower, inverted
-    follower.configure(
-        followerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+    if (follower != null) {
+      var followerConfig = new SparkMaxConfig();
+      followerConfig
+          .idleMode(IdleMode.kCoast)
+          .smartCurrentLimit(ROLLER_CURRENT_LIMIT_AMPS)
+          .voltageCompensation(12.0)
+          .follow(ROLLER_MASTER_ID, true); // Hardware-level follower, inverted
+      follower.configure(
+          followerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+    }
   }
 
   @Override
@@ -54,9 +59,11 @@ public class IntakeRollerIOSparkMax implements IntakeRollerIO {
     inputs.velocityRpm = encoder.getVelocity();
     inputs.appliedVolts = master.getAppliedOutput() * master.getBusVoltage();
     inputs.masterCurrentAmps = master.getOutputCurrent();
-    inputs.followerCurrentAmps = follower.getOutputCurrent();
     inputs.masterTempCelsius = master.getMotorTemperature();
-    inputs.followerTempCelsius = follower.getMotorTemperature();
+    if (follower != null) {
+      inputs.followerCurrentAmps = follower.getOutputCurrent();
+      inputs.followerTempCelsius = follower.getMotorTemperature();
+    }
   }
 
   @Override

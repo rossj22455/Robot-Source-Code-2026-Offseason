@@ -23,15 +23,24 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.vision.VisionConstants;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
 public class DriveCommands {
   private static final double DEADBAND = 0.1;
+  // driveToPoint: proportional approach speed per meter of error, capped, plus the stop tolerance
+  private static final double POINT_KP = 3.0; // (m/s) per m
+  private static final double POINT_MAX_SPEED_METERS_PER_SEC = 1.5;
+  private static final double POINT_TOLERANCE_METERS = 0.03;
+  // Teleop translation speed cap as a fraction of the drivetrain's max (full stick = this x max).
+  // Applies to all joystick driving, including aim-and-shoot; autonomous paths are unaffected.
+  private static final double TELEOP_LINEAR_SPEED_SCALAR = 0.75;
   private static final double ANGLE_KP = 5.0;
   private static final double ANGLE_KD = 0.4;
   private static final double ANGLE_MAX_VELOCITY = 8.0;
@@ -48,8 +57,8 @@ public class DriveCommands {
     double linearMagnitude = MathUtil.applyDeadband(Math.hypot(x, y), DEADBAND);
     Rotation2d linearDirection = new Rotation2d(Math.atan2(y, x));
 
-    // Square magnitude for more precise control
-    linearMagnitude = linearMagnitude * linearMagnitude;
+    // Square magnitude for more precise control, then apply the teleop speed cap
+    linearMagnitude = linearMagnitude * linearMagnitude * TELEOP_LINEAR_SPEED_SCALAR;
 
     // Return new linear velocity
     return new Pose2d(Translation2d.kZero, linearDirection)
@@ -121,6 +130,24 @@ public class DriveCommands {
       DoubleSupplier ySupplier,
       Supplier<Rotation2d> rotationSupplier,
       double speedScalar) {
+    return joystickDriveAtAngle(
+        drive, xSupplier, ySupplier, rotationSupplier, speedScalar, () -> true, () -> 0.0);
+  }
+
+  /**
+   * {@link #joystickDriveAtAngle} that only auto-aims while {@code autoAimEnabled} is true. When it
+   * is false (e.g. vision is down, so the target heading can't be trusted) rotation comes from the
+   * driver's {@code manualOmegaSupplier} stick instead, exactly like normal joystick driving.
+   * Re-checked every loop, so it switches cleanly if vision drops or recovers mid-command.
+   */
+  public static Command joystickDriveAtAngle(
+      Drive drive,
+      DoubleSupplier xSupplier,
+      DoubleSupplier ySupplier,
+      Supplier<Rotation2d> rotationSupplier,
+      double speedScalar,
+      BooleanSupplier autoAimEnabled,
+      DoubleSupplier manualOmegaSupplier) {
 
     // Create PID controller
     ProfiledPIDController angleController =
@@ -138,10 +165,18 @@ public class DriveCommands {
               Translation2d linearVelocity =
                   getLinearVelocityFromJoysticks(xSupplier.getAsDouble(), ySupplier.getAsDouble());
 
-              // Calculate angular speed
-              double omega =
-                  angleController.calculate(
-                      drive.getRotation().getRadians(), rotationSupplier.get().getRadians());
+              // Calculate angular speed: auto-aim, or the driver's stick when aim isn't allowed
+              double omega;
+              if (autoAimEnabled.getAsBoolean()) {
+                omega =
+                    angleController.calculate(
+                        drive.getRotation().getRadians(), rotationSupplier.get().getRadians());
+              } else {
+                double stick = MathUtil.applyDeadband(manualOmegaSupplier.getAsDouble(), DEADBAND);
+                omega = Math.copySign(stick * stick, stick) * drive.getMaxAngularSpeedRadPerSec();
+                // Keep the aim controller tracking the robot so re-enabling aim doesn't lurch
+                angleController.reset(drive.getRotation().getRadians());
+              }
 
               // Convert to field relative speeds & send command
               ChassisSpeeds speeds =
@@ -163,6 +198,57 @@ public class DriveCommands {
 
         // Reset PID controller when command starts
         .beforeStarting(() -> angleController.reset(drive.getRotation().getRadians()));
+  }
+
+  /**
+   * Drives straight to a field position (translation only is the goal) while turning toward the
+   * supplied heading, ending once within {@code POINT_TOLERANCE_METERS}. Used to finish a path that
+   * ended short of or past its stop point — PathPlanner ends a path on time, not on arrival.
+   */
+  public static Command driveToPoint(
+      Drive drive, Translation2d target, Supplier<Rotation2d> rotationSupplier) {
+    ProfiledPIDController angleController =
+        new ProfiledPIDController(
+            ANGLE_KP,
+            0.0,
+            ANGLE_KD,
+            new TrapezoidProfile.Constraints(ANGLE_MAX_VELOCITY, ANGLE_MAX_ACCELERATION));
+    angleController.enableContinuousInput(-Math.PI, Math.PI);
+
+    return Commands.run(
+            () -> {
+              Translation2d error = target.minus(drive.getPose().getTranslation());
+              double distance = error.getNorm();
+              double speed = Math.min(POINT_KP * distance, POINT_MAX_SPEED_METERS_PER_SEC);
+              Translation2d velocity =
+                  distance > 1e-6 ? error.times(speed / distance) : Translation2d.kZero;
+              double omega =
+                  angleController.calculate(
+                      drive.getRotation().getRadians(), rotationSupplier.get().getRadians());
+              // Field frame is the blue-origin pose frame here (no driver-perspective flip)
+              drive.runVelocity(
+                  ChassisSpeeds.fromFieldRelativeSpeeds(
+                      velocity.getX(), velocity.getY(), omega, drive.getRotation()));
+            },
+            drive)
+        .beforeStarting(() -> angleController.reset(drive.getRotation().getRadians()))
+        .until(() -> drive.getPose().getTranslation().getDistance(target) < POINT_TOLERANCE_METERS)
+        .finallyDo(drive::stop)
+        .withName("DriveToPoint");
+  }
+
+  /**
+   * Snaps the pose estimate to the next good vision measurement (see {@link
+   * Drive#requestVisionSnap()}), ending once it has, or after the timeout if the camera sees no
+   * usable tag. Does NOT require the drive, so it can run as a PathPlanner event marker without
+   * interrupting path following.
+   */
+  public static Command snapPoseToVision(Drive drive) {
+    return Commands.runOnce(drive::requestVisionSnap)
+        .andThen(Commands.waitUntil(() -> !drive.isVisionSnapPending()))
+        .withTimeout(VisionConstants.visionSnapTimeoutSecs)
+        .finallyDo(drive::cancelVisionSnap)
+        .withName("SnapPoseToVision");
   }
 
   /**

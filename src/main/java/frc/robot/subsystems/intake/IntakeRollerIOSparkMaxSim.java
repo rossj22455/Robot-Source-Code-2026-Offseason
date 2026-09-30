@@ -29,7 +29,9 @@ public class IntakeRollerIOSparkMaxSim extends IntakeRollerIOSparkMax {
   private static final double SIM_MOI_KG_M2 = 0.0005;
 
   private final SparkMaxSim masterSim = new SparkMaxSim(master, MOTOR_MODEL);
-  private final SparkMaxSim followerSim = new SparkMaxSim(follower, MOTOR_MODEL);
+  // Null when the follower isn't installed (mirrors the real IO)
+  private final SparkMaxSim followerSim =
+      follower != null ? new SparkMaxSim(follower, MOTOR_MODEL) : null;
   private final DCMotorSim physics =
       new DCMotorSim(
           LinearSystemId.createDCMotorSystem(MOTOR_MODEL, SIM_MOI_KG_M2, 1.0), MOTOR_MODEL);
@@ -38,8 +40,10 @@ public class IntakeRollerIOSparkMaxSim extends IntakeRollerIOSparkMax {
     // Supply current ~= stator current x duty cycle; both rollers contribute to battery sag
     SimulatedBattery.addElectricalAppliances(
         () -> Amps.of(Math.abs(masterSim.getMotorCurrent() * masterSim.getAppliedOutput())));
-    SimulatedBattery.addElectricalAppliances(
-        () -> Amps.of(Math.abs(followerSim.getMotorCurrent() * followerSim.getAppliedOutput())));
+    if (followerSim != null) {
+      SimulatedBattery.addElectricalAppliances(
+          () -> Amps.of(Math.abs(followerSim.getMotorCurrent() * followerSim.getAppliedOutput())));
+    }
   }
 
   @Override
@@ -52,7 +56,9 @@ public class IntakeRollerIOSparkMaxSim extends IntakeRollerIOSparkMax {
     // No conversion factors configured, so iterate() takes raw motor RPM. The hardware-inverted
     // follower is mirrored manually (REV sim limitation).
     masterSim.iterate(physics.getAngularVelocityRPM(), vbus, LOOP_PERIOD_SECS);
-    followerSim.iterate(-physics.getAngularVelocityRPM(), vbus, LOOP_PERIOD_SECS);
+    if (followerSim != null) {
+      followerSim.iterate(-physics.getAngularVelocityRPM(), vbus, LOOP_PERIOD_SECS);
+    }
 
     super.updateInputs(inputs);
   }

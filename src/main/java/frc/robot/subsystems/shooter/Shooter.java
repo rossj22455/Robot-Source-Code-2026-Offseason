@@ -44,6 +44,8 @@ public class Shooter extends SubsystemBase {
   // Vision distance channel (bound to Vision::getHubDistanceMeters / hasHubPoseConfidence)
   private final DoubleSupplier hubDistanceSupplier;
   private final BooleanSupplier distanceValidSupplier;
+  // True while vision hardware is up (a camera connected); see the aim waiver in periodic()
+  private final BooleanSupplier visionConnectedSupplier;
 
   // Aim channel: the hood is fixed, so being aimed means the robot heading matches the target
   // bearing (hub normally; the alliance corner while funneling from the neutral zone)
@@ -89,6 +91,7 @@ public class Shooter extends SubsystemBase {
       ShooterKickerIO kickerIO,
       DoubleSupplier hubDistanceSupplier,
       BooleanSupplier distanceValidSupplier,
+      BooleanSupplier visionConnectedSupplier,
       Supplier<Rotation2d> robotHeadingSupplier,
       Supplier<Rotation2d> targetHeadingSupplier,
       BooleanSupplier funnelModeSupplier) {
@@ -96,6 +99,7 @@ public class Shooter extends SubsystemBase {
     this.kickerIO = kickerIO;
     this.hubDistanceSupplier = hubDistanceSupplier;
     this.distanceValidSupplier = distanceValidSupplier;
+    this.visionConnectedSupplier = visionConnectedSupplier;
     this.robotHeadingSupplier = robotHeadingSupplier;
     this.targetHeadingSupplier = targetHeadingSupplier;
     this.funnelModeSupplier = funnelModeSupplier;
@@ -145,13 +149,22 @@ public class Shooter extends SubsystemBase {
     // 1. FUNNELING (in the neutral zone, hub shots illegal): fixed corner-lob RPM,
     //    vision-independent.
     // 2. HUB_VISION: distance-mapped RPM from the vision-corrected pose.
-    // 3. HUB_FALLBACK (vision stale): fixed fallback RPM; the driver ranges by eye.
+    // 3. HUB_ODOMETRY (autonomous, vision stale): still the pose distance. In auto the pose was
+    //    set at the start and snapped to vision after the bump, and a few seconds of odometry
+    //    stays accurate, so it beats any fixed RPM — auto must never skip or botch a shot just
+    //    because the camera briefly lost the tags.
+    // 4. HUB_FALLBACK (teleop, vision stale): fixed fallback RPM; the driver ranges by eye.
     boolean funneling = funnelModeSupplier.getAsBoolean();
     boolean visionValid = distanceValidSupplier.getAsBoolean();
+    boolean useOdometryDistance = !visionValid && DriverStation.isAutonomous();
     String targetingMode =
         manual
             ? "MANUAL_TEST"
-            : (funneling ? "FUNNELING" : (visionValid ? "HUB_VISION" : "HUB_FALLBACK"));
+            : funneling
+                ? "FUNNELING"
+                : visionValid
+                    ? "HUB_VISION"
+                    : (useOdometryDistance ? "HUB_ODOMETRY" : "HUB_FALLBACK");
     if (unjamRequested) {
       // Chute unjam (highest priority): spin the drum FORWARD a little faster than idle to fling
       // a ball stuck in the chute clear, and reverse the kicker at a moderate speed to back the
@@ -164,7 +177,7 @@ public class Shooter extends SubsystemBase {
         targetRpm = manualRpm;
       } else if (funneling) {
         targetRpm = FUNNEL_RPM;
-      } else if (visionValid) {
+      } else if (visionValid || useOdometryDistance) {
         targetRpm = rpmMap.get(hubDistanceSupplier.getAsDouble());
       } else {
         targetRpm = VISION_FALLBACK_RPM;
@@ -185,21 +198,27 @@ public class Shooter extends SubsystemBase {
       //   drumIO.stop();
       // }
     }
-    visionFallbackAlert.set(spinUpRequested && !manual && !funneling && !visionValid);
+    visionFallbackAlert.set(
+        spinUpRequested && !manual && !funneling && !visionValid && !useOdometryDistance);
 
     // Anti-jamming interlock: ready only when the drum has stabilized within a razor-thin
     // tolerance of the target RPM (debounced against momentary crossings) AND the robot is
     // aimed at the current target (fixed hood: heading IS aim; hub normally, alliance corner
     // while funneling). Vision freshness deliberately does NOT gate here — losing vision falls
-    // back to a fixed RPM instead of disabling the shooter. Feeding is blocked at the interlock
+    // back to a fixed RPM (and, in teleop, drops the aim requirement) instead of disabling the
+    // shooter. Feeding is blocked at the interlock
     // root, covering the kicker AND the indexer, which both key off isReadyToShoot().
     double aimErrorDeg =
         Math.abs(robotHeadingSupplier.get().minus(targetHeadingSupplier.get()).getDegrees());
     boolean aimedAtTarget = aimErrorDeg <= AIM_TOLERANCE_DEG;
-    boolean shotConditions =
-        spinUpRequested
-            && targetRpm > 0.0
-            && (aimedAtTarget || manual); // Manual test shots fire wherever the robot faces
+    // The aim check only means something when the target bearing does (it comes from the pose).
+    // If vision is actually DOWN in teleop (no camera connected), the pose may have drifted or
+    // never been set, so the driver aims by eye — like ranging falls back to a fixed RPM — and
+    // feeding must not be blocked by an aim that can't be trusted. Merely not seeing a tag right
+    // now (e.g. still turning toward the hub) does NOT waive aim. Manual test shots never need aim.
+    boolean visionDown = !visionConnectedSupplier.getAsBoolean();
+    boolean aimRequired = !manual && !(visionDown && !DriverStation.isAutonomous());
+    boolean shotConditions = spinUpRequested && targetRpm > 0.0 && (aimedAtTarget || !aimRequired);
     // Entry: the drum must settle within the tight tolerance (debounced) before feeding starts
     boolean enteredReady =
         readyDebouncer.calculate(
@@ -221,6 +240,8 @@ public class Shooter extends SubsystemBase {
     Logger.recordOutput("Shooter/TargetingMode", targetingMode);
     Logger.recordOutput("Shooter/AimErrorDeg", aimErrorDeg);
     Logger.recordOutput("Shooter/AimedAtTarget", aimedAtTarget);
+    Logger.recordOutput("Shooter/AimRequired", aimRequired);
+    Logger.recordOutput("Shooter/VisionDown", visionDown);
   }
 
   /** Starts spinning the drum to the vision-mapped RPM for the current hub distance. */

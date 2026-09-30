@@ -11,6 +11,7 @@ import static frc.robot.Constants.Indexer.*;
 
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
+import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import java.util.function.BooleanSupplier;
 import org.littletonrobotics.junction.Logger;
@@ -32,6 +33,8 @@ public class Indexer extends SubsystemBase {
   private final BooleanSupplier readyToShootSupplier;
 
   private double requestedVolts = 0.0;
+  // Staging (gentle forward while the intake retracts) is exempt from the ready-to-shoot interlock
+  private boolean staging = false;
   private boolean lastFeedBlocked = false;
 
   private final Alert disconnectedAlert =
@@ -55,7 +58,7 @@ public class Indexer extends SubsystemBase {
     // Interlock enforcement runs every loop, so if the shooter drops out of tolerance mid-feed
     // the belt stops immediately rather than continuing on a stale permission
     double outputVolts = requestedVolts;
-    lastFeedBlocked = requestedVolts > 0.0 && !readyToShootSupplier.getAsBoolean();
+    lastFeedBlocked = requestedVolts > 0.0 && !staging && !readyToShootSupplier.getAsBoolean();
     if (lastFeedBlocked) {
       outputVolts = 0.0;
     }
@@ -65,6 +68,7 @@ public class Indexer extends SubsystemBase {
     Logger.recordOutput("Indexer/RequestedVolts", requestedVolts);
     Logger.recordOutput("Indexer/OutputVolts", outputVolts);
     Logger.recordOutput("Indexer/FeedBlockedByInterlock", lastFeedBlocked);
+    Logger.recordOutput("Indexer/Staging", staging);
   }
 
   /**
@@ -74,16 +78,34 @@ public class Indexer extends SubsystemBase {
    */
   public void feed() {
     requestedVolts = INDEXER_FEED_VOLTS;
+    staging = false;
+  }
+
+  /**
+   * Gently pulls balls forward into the robot while the intake retracts. The only forward motion
+   * allowed without the drum at speed: it runs at the low {@code INDEXER_STAGE_VOLTS}, and the
+   * braked kicker stops staged balls short of the drum.
+   */
+  public void stage() {
+    requestedVolts = INDEXER_STAGE_VOLTS;
+    staging = true;
+  }
+
+  /** Command: stage while running; stops the belt when it ends. */
+  public Command stageCommand() {
+    return startEnd(this::stage, this::stop).withName("IndexerStage");
   }
 
   /** Runs the belt in reverse, away from the shooter (always permitted, for clearing jams). */
   public void reverse() {
     requestedVolts = INDEXER_REVERSE_VOLTS;
+    staging = false;
   }
 
   /** Stops the belt. */
   public void stop() {
     requestedVolts = 0.0;
+    staging = false;
   }
 
   /** Returns true when a forward feed request is currently being blocked by the interlock. */

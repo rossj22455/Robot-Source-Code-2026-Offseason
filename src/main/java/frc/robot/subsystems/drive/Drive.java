@@ -15,13 +15,14 @@ import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import com.pathplanner.lib.pathfinding.Pathfinding;
+import com.pathplanner.lib.util.FlippingUtil;
 import com.pathplanner.lib.util.PathPlannerLogging;
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
-import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -37,14 +38,16 @@ import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants;
 import frc.robot.Constants.Mode;
-import frc.robot.FieldConstants;
 import frc.robot.generated.TunerConstants;
+import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.util.LocalADStarAK;
+import java.util.Optional;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -116,12 +119,22 @@ public class Drive extends SubsystemBase {
   private final Alert gyroDisconnectedAlert =
       new Alert("Disconnected gyro, using kinematics as fallback.", AlertType.kError);
 
-  // Tilt-anomaly monitoring for autonomous fault recovery (Pigeon 2 pitch/roll)
-  private final Debouncer tiltDebouncer = new Debouncer(TiltConstants.TILT_DEBOUNCE_SECS);
-  private boolean tilted = false;
-
   private SwerveDriveKinematics kinematics = new SwerveDriveKinematics(getModuleTranslations());
   private Rotation2d rawGyroRotation = Rotation2d.kZero;
+  // True once the pose estimator's heading is referenced to the field (see sampleHeadingAt)
+  private boolean headingInitialized = false;
+
+  // Vision snap (see requestVisionSnap): armed by a command, consumed by the next good measurement
+  private boolean visionSnapPending = false;
+  // False until a good heading-bearing (multitag) vision measurement has set the heading since the
+  // last pose reset; that first one is applied as a hard heading reference (see
+  // addVisionMeasurement)
+  private boolean visionHeadingSeeded = false;
+  private double visionSnapRequestTimestamp = 0.0;
+  // Most recent PathPlanner setpoint (already alliance-flipped). When a path finishes this is its
+  // end pose, which the auto Shoot drives to before firing (see getLastPathTargetPose)
+  private Pose2d lastPathTargetPose = null;
+
   private SwerveModulePosition[] lastModulePositions = // For delta tracking
       new SwerveModulePosition[] {
         new SwerveModulePosition(),
@@ -164,6 +177,14 @@ public class Drive extends SubsystemBase {
     // Start odometry thread
     PhoenixOdometryThread.getInstance().start();
 
+    // PathPlanner mirrors blue paths onto the red side using the field size, which defaults to the
+    // stock 2026 field (16.54 m). The RoboCon field is shorter (~14.68 m), so without this every
+    // red
+    // pose lands ~1.86 m too far toward the red wall. Use the custom map's dimensions instead (the
+    // map is rotationally symmetric, matching PathPlanner's default flip).
+    FlippingUtil.fieldSizeX = VisionConstants.aprilTagLayout.getFieldLength();
+    FlippingUtil.fieldSizeY = VisionConstants.aprilTagLayout.getFieldWidth();
+
     // Configure AutoBuilder for PathPlanner
     AutoBuilder.configure(
         this::getPose,
@@ -183,6 +204,7 @@ public class Drive extends SubsystemBase {
     PathPlannerLogging.setLogTargetPoseCallback(
         (targetPose) -> {
           Logger.recordOutput("Odometry/TrajectorySetpoint", targetPose);
+          lastPathTargetPose = targetPose;
         });
 
     // Configure SysId
@@ -254,28 +276,9 @@ public class Drive extends SubsystemBase {
 
     // Update gyro alert
     gyroDisconnectedAlert.set(!gyroInputs.connected && Constants.currentMode != Mode.SIM);
-
-    // Continuous tilt monitoring (debounced pitch/roll threshold). Only meaningful while the
-    // gyro is connected; a disconnected gyro reports zero pitch/roll and never triggers. Masked
-    // inside the hub ramp footprints, where tilt is expected (driving the ramps) rather than an
-    // anomaly — recovery there would fight normal ramp crossings.
-    tilted =
-        tiltDebouncer.calculate(
-            gyroInputs.connected
-                && !FieldConstants.isOnHubRamp(getPose().getTranslation())
-                && (Math.abs(gyroInputs.pitchPosition.getDegrees())
-                        > TiltConstants.TILT_THRESHOLD_DEGREES
-                    || Math.abs(gyroInputs.rollPosition.getDegrees())
-                        > TiltConstants.TILT_THRESHOLD_DEGREES));
-    Logger.recordOutput("Drive/Tilt/Tilted", tilted);
-  }
-
-  /**
-   * Returns true when the robot's pitch or roll has exceeded the tilt threshold for the debounce
-   * period — used by autonomous routines to trigger the dynamic recovery sequence.
-   */
-  public boolean isTilted() {
-    return tilted;
+    Logger.recordOutput("Drive/HeadingInitialized", headingInitialized);
+    Logger.recordOutput("Drive/VisionSnap/Pending", visionSnapPending);
+    Logger.recordOutput("Drive/VisionHeadingSeed/Seeded", visionHeadingSeeded);
   }
 
   /**
@@ -407,15 +410,110 @@ public class Drive extends SubsystemBase {
   public void setPose(Pose2d pose) {
     resetSimulationPoseCallback.accept(pose);
     poseEstimator.resetPosition(rawGyroRotation, getModulePositions(), pose);
+    headingInitialized = true;
+    visionSnapPending = false;
+    // A reset (driver heading button, auto start) is only as accurate as the robot's placement, so
+    // let the next good multitag measurement re-establish the heading precisely
+    visionHeadingSeeded = false;
+    lastPathTargetPose = null; // A new pose frame; old path setpoints no longer apply
   }
 
-  /** Adds a new timestamped vision measurement. */
+  /**
+   * The last setpoint PathPlanner commanded (field frame, alliance-flipped) — after a path ends,
+   * where that path meant the robot to stop. Empty if no path has run since the last pose reset.
+   */
+  public Optional<Pose2d> getLastPathTargetPose() {
+    return Optional.ofNullable(lastPathTargetPose);
+  }
+
+  /**
+   * Arms a vision snap: the next good vision measurement captured after this call is applied with a
+   * near-zero X/Y std dev, so the pose estimator's position becomes the vision position (heading
+   * stays with the gyro). Used after driving over the bump, where wheel slip corrupts odometry.
+   * Odometry recorded since the camera frame is replayed on top, so camera latency is compensated.
+   */
+  public void requestVisionSnap() {
+    visionSnapPending = true;
+    visionSnapRequestTimestamp = Timer.getTimestamp();
+  }
+
+  /** Disarms a pending vision snap (no-op if it already happened). */
+  public void cancelVisionSnap() {
+    visionSnapPending = false;
+  }
+
+  /** True while a requested vision snap is still waiting for a good measurement. */
+  public boolean isVisionSnapPending() {
+    return visionSnapPending;
+  }
+
+  /** Adds a new timestamped vision measurement (or applies a pending vision snap). */
   public void addVisionMeasurement(
       Pose2d visionRobotPoseMeters,
       double timestampSeconds,
       Matrix<N3, N1> visionMeasurementStdDevs) {
+    if (visionSnapPending
+        && timestampSeconds >= visionSnapRequestTimestamp // Frame captured after the request
+        && visionMeasurementStdDevs.get(0, 0) <= VisionConstants.visionSnapMaxLinearStdDev) {
+      visionSnapPending = false;
+      poseEstimator
+          .sampleAt(timestampSeconds)
+          .ifPresent(
+              before ->
+                  Logger.recordOutput(
+                      "Drive/VisionSnap/CorrectionMeters",
+                      before.getTranslation().getDistance(visionRobotPoseMeters.getTranslation())));
+      Logger.recordOutput("Drive/VisionSnap/SnapPose", visionRobotPoseMeters);
+      visionMeasurementStdDevs =
+          VecBuilder.fill(
+              VisionConstants.visionSnapStdDev,
+              VisionConstants.visionSnapStdDev,
+              visionMeasurementStdDevs.get(2, 0));
+    }
+    // Heading seed: the first good heading-bearing measurement after boot or a pose reset SETS the
+    // heading (tiny theta std dev) instead of nudging it. Without this the heading is only as good
+    // as the gyro's power-on zero or where the robot pointed when the heading button was pressed —
+    // and single-tag solves inherit any heading error as position error.
+    double thetaStdDev = visionMeasurementStdDevs.get(2, 0);
+    if (!visionHeadingSeeded
+        && Double.isFinite(thetaStdDev)
+        && thetaStdDev <= VisionConstants.visionHeadingSeedMaxStdDev) {
+      visionHeadingSeeded = true;
+      poseEstimator
+          .sampleAt(timestampSeconds)
+          .ifPresent(
+              before ->
+                  Logger.recordOutput(
+                      "Drive/VisionHeadingSeed/CorrectionDeg",
+                      visionRobotPoseMeters
+                          .getRotation()
+                          .minus(before.getRotation())
+                          .getDegrees()));
+      visionMeasurementStdDevs =
+          VecBuilder.fill(
+              visionMeasurementStdDevs.get(0, 0),
+              visionMeasurementStdDevs.get(1, 0),
+              VisionConstants.visionSnapStdDev);
+    }
     poseEstimator.addVisionMeasurement(
         visionRobotPoseMeters, timestampSeconds, visionMeasurementStdDevs);
+    // A measurement that is allowed to correct heading anchors it to the field
+    if (Double.isFinite(visionMeasurementStdDevs.get(2, 0))) {
+      headingInitialized = true;
+    }
+  }
+
+  /**
+   * Returns the estimated field-relative heading at a past timestamp (for latency-compensated
+   * single-tag vision solves), or empty if the heading has not yet been anchored to the field. At
+   * boot the heading is just the gyro's power-on zero, so it only counts as anchored after a pose
+   * reset (auto start / driver heading reset) or a heading-correcting multitag vision measurement.
+   */
+  public Optional<Rotation2d> sampleHeadingAt(double timestampSeconds) {
+    if (!headingInitialized) {
+      return Optional.empty();
+    }
+    return poseEstimator.sampleAt(timestampSeconds).map(Pose2d::getRotation);
   }
 
   /** Returns the maximum linear speed in meters per sec. */
