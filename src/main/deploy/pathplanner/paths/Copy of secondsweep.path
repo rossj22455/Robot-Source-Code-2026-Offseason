@@ -3,13 +3,13 @@
   "waypoints": [
     {
       "anchor": {
-        "x": 2.579265129003349,
-        "y": 5.6070470756062765
+        "x": 2.1279548289280084,
+        "y": 5.73128888424166
       },
       "prevControl": null,
       "nextControl": {
-        "x": 1.7326541200886751,
-        "y": 7.18253855950191
+        "x": 1.2813438200133347,
+        "y": 7.306780368137293
       },
       "isLocked": false,
       "linkedName": "Lfire"
@@ -80,12 +80,12 @@
     },
     {
       "anchor": {
-        "x": 2.579265129003349,
-        "y": 5.6070470756062765
+        "x": 2.1279548289280084,
+        "y": 5.73128888424166
       },
       "prevControl": {
-        "x": 4.171546666531116,
-        "y": 5.755902252851579
+        "x": 3.7202363664557754,
+        "y": 5.880144061486962
       },
       "nextControl": null,
       "isLocked": false,
@@ -135,13 +135,13 @@
   },
   "goalEndState": {
     "velocity": 0,
-    "rotation": -51.04598478907765
+    "rotation": -42.86453655762335
   },
   "reversed": false,
   "folder": "bump",
   "idealStartingState": {
     "velocity": 0,
-    "rotation": -51.04598478907765
+    "rotation": -42.86453655762335
   },
   "useDefaultConstraints": true
 }

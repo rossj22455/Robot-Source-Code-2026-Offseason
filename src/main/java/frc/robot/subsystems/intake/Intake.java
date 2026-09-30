@@ -60,6 +60,8 @@ public class Intake extends SubsystemBase {
               LINEAR_MAX_VELOCITY_METERS_PER_SEC, LINEAR_MAX_ACCELERATION_METERS_PER_SEC_SQ));
   private final Debouncer stallDebouncer = new Debouncer(HOMING_STALL_DEBOUNCE_SECS);
   private final Timer homingTimer = new Timer();
+  // Times each herding stroke so a blocked stroke still reverses (AGGREGATE_STROKE_TIMEOUT_SECS)
+  private final Timer strokeTimer = new Timer();
 
   // Starts RUNNING: the intake is assumed to be powered on all the way in (encoder = 0)
   private LinearState linearState = LinearState.RUNNING;
@@ -202,12 +204,21 @@ public class Intake extends SubsystemBase {
           linearController.reset(linearInputs.positionMeters);
           linearIO.setVoltage(0.0);
         } else {
-          // Firing aggregation: once the current stroke settles, reverse direction (shutter)
-          if (aggregating && linearController.atGoal()) {
+          // Firing aggregation: reverse direction (shutter) once the stroke reaches its end, or
+          // after the stroke timeout if balls are blocking it, so the pulse never stalls
+          if (aggregating
+              && (linearController.atGoal()
+                  || strokeTimer.hasElapsed(AGGREGATE_STROKE_TIMEOUT_SECS))) {
             shutterOut = !shutterOut;
             setGoalMeters(shutterOut ? SHUTTER_OUT_POSITION_METERS : SHUTTER_IN_POSITION_METERS);
+            strokeTimer.restart();
           }
           double outputVolts = linearController.calculate(linearInputs.positionMeters, goalMeters);
+          // Herding push: extra voltage toward the stroke's end so the slide drives through balls
+          double strokeError = goalMeters - linearInputs.positionMeters;
+          if (aggregating && Math.abs(strokeError) > LINEAR_POSITION_TOLERANCE_METERS) {
+            outputVolts += Math.copySign(AGGREGATE_PUSH_VOLTS, strokeError);
+          }
           linearIO.setVoltage(MathUtil.clamp(outputVolts, -12.0, 12.0));
         }
       }
@@ -321,6 +332,7 @@ public class Intake extends SubsystemBase {
       preAggregationGoalMeters = goalMeters;
       linearController.setConstraints(AGGREGATE_CONSTRAINTS);
       setGoalMeters(SHUTTER_IN_POSITION_METERS);
+      strokeTimer.restart();
       runRollers(ROLLER_RETRACT_VOLTS);
     }
   }

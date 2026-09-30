@@ -129,6 +129,7 @@ public class RobotContainer {
                 new ShooterKickerIOSparkMax(),
                 this::getHubShotDistance,
                 vision::hasHubPoseConfidence,
+                vision::isAnyCameraConnected,
                 drive::getRotation,
                 this::getTargetHeading,
                 this::isFunneling);
@@ -184,6 +185,7 @@ public class RobotContainer {
                 new ShooterKickerIOSparkMaxSim(),
                 this::getHubShotDistance,
                 vision::hasHubPoseConfidence,
+                vision::isAnyCameraConnected,
                 drive::getRotation,
                 this::getTargetHeading,
                 this::isFunneling);
@@ -233,6 +235,7 @@ public class RobotContainer {
                 new ShooterKickerIO() {},
                 this::getHubShotDistance,
                 vision::hasHubPoseConfidence,
+                vision::isAnyCameraConnected,
                 drive::getRotation,
                 this::getTargetHeading,
                 this::isFunneling);
@@ -395,9 +398,22 @@ public class RobotContainer {
                 xSupplier,
                 ySupplier,
                 this::getTargetHeading,
-                Constants.Shooter.SHOOT_ON_MOVE_SPEED_SCALAR),
+                Constants.Shooter.SHOOT_ON_MOVE_SPEED_SCALAR,
+                this::isAutoAimAllowed,
+                () -> 0.0), // Vision lost: hold heading, no turning (the driver lines up first)
             shootCommand())
         .withName("AimAndShoot");
+  }
+
+  /**
+   * Whether R2 may auto-rotate the robot toward the target. In teleop, only while vision is up (a
+   * camera connected): with vision lost, the target bearing comes from an untrusted pose, so R2
+   * does NOT turn the robot at all and fires at the fallback RPM wherever the driver has it
+   * pointed. Autonomous always auto-aims (its pose was set at the start and odometry stays
+   * accurate).
+   */
+  private boolean isAutoAimAllowed() {
+    return DriverStation.isAutonomous() || vision.isAnyCameraConnected();
   }
 
   /**

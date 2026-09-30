@@ -28,6 +28,7 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
@@ -129,6 +130,24 @@ public class DriveCommands {
       DoubleSupplier ySupplier,
       Supplier<Rotation2d> rotationSupplier,
       double speedScalar) {
+    return joystickDriveAtAngle(
+        drive, xSupplier, ySupplier, rotationSupplier, speedScalar, () -> true, () -> 0.0);
+  }
+
+  /**
+   * {@link #joystickDriveAtAngle} that only auto-aims while {@code autoAimEnabled} is true. When it
+   * is false (e.g. vision is down, so the target heading can't be trusted) rotation comes from the
+   * driver's {@code manualOmegaSupplier} stick instead, exactly like normal joystick driving.
+   * Re-checked every loop, so it switches cleanly if vision drops or recovers mid-command.
+   */
+  public static Command joystickDriveAtAngle(
+      Drive drive,
+      DoubleSupplier xSupplier,
+      DoubleSupplier ySupplier,
+      Supplier<Rotation2d> rotationSupplier,
+      double speedScalar,
+      BooleanSupplier autoAimEnabled,
+      DoubleSupplier manualOmegaSupplier) {
 
     // Create PID controller
     ProfiledPIDController angleController =
@@ -146,10 +165,18 @@ public class DriveCommands {
               Translation2d linearVelocity =
                   getLinearVelocityFromJoysticks(xSupplier.getAsDouble(), ySupplier.getAsDouble());
 
-              // Calculate angular speed
-              double omega =
-                  angleController.calculate(
-                      drive.getRotation().getRadians(), rotationSupplier.get().getRadians());
+              // Calculate angular speed: auto-aim, or the driver's stick when aim isn't allowed
+              double omega;
+              if (autoAimEnabled.getAsBoolean()) {
+                omega =
+                    angleController.calculate(
+                        drive.getRotation().getRadians(), rotationSupplier.get().getRadians());
+              } else {
+                double stick = MathUtil.applyDeadband(manualOmegaSupplier.getAsDouble(), DEADBAND);
+                omega = Math.copySign(stick * stick, stick) * drive.getMaxAngularSpeedRadPerSec();
+                // Keep the aim controller tracking the robot so re-enabling aim doesn't lurch
+                angleController.reset(drive.getRotation().getRadians());
+              }
 
               // Convert to field relative speeds & send command
               ChassisSpeeds speeds =

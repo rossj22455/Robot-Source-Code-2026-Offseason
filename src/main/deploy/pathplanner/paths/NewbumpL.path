@@ -16,48 +16,48 @@
     },
     {
       "anchor": {
-        "x": 6.575633224847884,
-        "y": 6.818404792226781
+        "x": 6.706066875294082,
+        "y": 6.838338648602221
       },
       "prevControl": {
-        "x": 5.820055657751993,
-        "y": 7.300882033866326
+        "x": 5.95089269641616,
+        "y": 7.320550178489319
       },
       "nextControl": {
-        "x": 6.879643170448684,
-        "y": 6.624277959493741
+        "x": 7.010078304832895,
+        "y": 6.644214139791687
       },
       "isLocked": false,
       "linkedName": null
     },
     {
       "anchor": {
-        "x": 6.420876373755954,
-        "y": 4.542568746757229
+        "x": 6.706066875294082,
+        "y": 4.474326130957271
       },
       "prevControl": {
-        "x": 7.0671041051450825,
-        "y": 4.732222537490995
+        "x": 7.351830911431302,
+        "y": 4.663846076165601
       },
       "nextControl": {
-        "x": 5.583368709023158,
-        "y": 4.296778453846517
+        "x": 5.868559995174732,
+        "y": 4.228533164564682
       },
       "isLocked": false,
       "linkedName": null
     },
     {
       "anchor": {
-        "x": 5.645144184448544,
-        "y": 5.500653516666542
+        "x": 5.655,
+        "y": 5.463849113732417
       },
       "prevControl": {
-        "x": 6.336998342271287,
-        "y": 5.455749736187855
+        "x": 6.342234882550064,
+        "y": 5.374645883934383
       },
       "nextControl": {
-        "x": 3.9271391589709035,
-        "y": 5.612158115797816
+        "x": 3.949974232771433,
+        "y": 5.685161810726636
       },
       "isLocked": false,
       "linkedName": null
@@ -68,8 +68,8 @@
         "y": 5.73128888424166
       },
       "prevControl": {
-        "x": 3.7356583185421584,
-        "y": 5.741005168854241
+        "x": 3.6386164865450255,
+        "y": 5.558312358560321
       },
       "nextControl": null,
       "isLocked": false,
@@ -83,29 +83,29 @@
     },
     {
       "waypointRelativePos": 1.4905660377358492,
-      "rotationDegrees": 84.58051702558201
+      "rotationDegrees": 90.56865779144982
     },
     {
       "waypointRelativePos": 2,
-      "rotationDegrees": -15.255118703057889
+      "rotationDegrees": 29.311820274286397
     },
     {
       "waypointRelativePos": 3.1006289308176114,
       "rotationDegrees": -104.0
     },
     {
-      "waypointRelativePos": 3.9182389937106885,
+      "waypointRelativePos": 3.8720682302771827,
       "rotationDegrees": -104.0
     }
   ],
   "constraintZones": [
     {
       "name": "Constraints Zone",
-      "minWaypointRelativePos": 0.8750844024308058,
+      "minWaypointRelativePos": 1.1849192100538588,
       "maxWaypointRelativePos": 2.2114143920595324,
       "constraints": {
         "maxVelocity": 1.5,
-        "maxAcceleration": 1.0,
+        "maxAcceleration": 2.5,
         "maxAngularVelocity": 560.0,
         "maxAngularAcceleration": 720.0,
         "nominalVoltage": 12.0,
@@ -114,11 +114,11 @@
     },
     {
       "name": "Constraints Zone",
-      "minWaypointRelativePos": 0,
-      "maxWaypointRelativePos": 0,
+      "minWaypointRelativePos": 3.0898041863605727,
+      "maxWaypointRelativePos": 4.0,
       "constraints": {
         "maxVelocity": 3.5,
-        "maxAcceleration": 2.75,
+        "maxAcceleration": 4.0,
         "maxAngularVelocity": 560.0,
         "maxAngularAcceleration": 720.0,
         "nominalVoltage": 12.0,
@@ -127,7 +127,30 @@
     }
   ],
   "pointTowardsZones": [],
-  "eventMarkers": [],
+  "eventMarkers": [
+    {
+      "name": "IntakeRun",
+      "waypointRelativePos": 0.13895781637717586,
+      "endWaypointRelativePos": 3.021339950372209,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "IntakeRun"
+        }
+      }
+    },
+    {
+      "name": "SpinUp",
+      "waypointRelativePos": 3.2436724565756867,
+      "endWaypointRelativePos": null,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "SpinUp"
+        }
+      }
+    }
+  ],
   "globalConstraints": {
     "maxVelocity": 3.5,
     "maxAcceleration": 2.75,
@@ -141,7 +164,7 @@
     "rotation": -42.86453655762335
   },
   "reversed": false,
-  "folder": "bump",
+  "folder": "robocon",
   "idealStartingState": {
     "velocity": 0,
     "rotation": 90.0

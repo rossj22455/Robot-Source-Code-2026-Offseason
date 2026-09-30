@@ -60,7 +60,9 @@ public class TunerConstants {
 
   // The stator current at which the wheels start to slip;
   // This needs to be tuned to your individual robot
-  private static final Current kSlipCurrent = Amps.of(120);
+  // Lowered 120 -> 80 A (2026-09-26) to curb brownouts; this is the drive STATOR limit
+  // (ModuleIOTalonFX applies it). Still at/above the traction limit, so launches barely change.
+  private static final Current kSlipCurrent = Amps.of(80);
 
   // Initial configs for the drive and steer motors and the azimuth encoder; these cannot be null.
   // Some configs will be overwritten; check the `with*InitialConfigs()` API documentation.
@@ -69,7 +71,8 @@ public class TunerConstants {
           .withCurrentLimits(
               new CurrentLimitsConfigs()
                   .withStatorCurrentLimit(Amps.of(80))
-                  .withSupplyCurrentLimit(Amps.of(50))
+                  // Lowered 50 -> 40 A (2026-09-26) to curb brownouts; top speed unaffected
+                  .withSupplyCurrentLimit(Amps.of(40))
                   .withStatorCurrentLimitEnable(true)
                   .withSupplyCurrentLimitEnable(true));
   private static final TalonFXConfiguration steerInitialConfigs =
@@ -77,10 +80,12 @@ public class TunerConstants {
           .withCurrentLimits(
               new CurrentLimitsConfigs()
                   // Swerve azimuth does not require much torque output, so we can set a relatively
-                  // low
-                  // stator current limit to help avoid brownouts without impacting performance.
+                  // low stator current limit to help avoid brownouts without impacting
+                  // performance. Supply limit added 2026-09-26 (brownouts).
                   .withStatorCurrentLimit(Amps.of(60))
-                  .withStatorCurrentLimitEnable(true));
+                  .withStatorCurrentLimitEnable(true)
+                  .withSupplyCurrentLimit(Amps.of(30))
+                  .withSupplyCurrentLimitEnable(true));
   private static final CANcoderConfiguration encoderInitialConfigs = new CANcoderConfiguration();
   // Configs for the Pigeon 2; leave this null to skip applying Pigeon 2 configs
   private static final Pigeon2Configuration pigeonConfigs = null;

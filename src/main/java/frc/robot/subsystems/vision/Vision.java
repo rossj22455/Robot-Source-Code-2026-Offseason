@@ -120,6 +120,19 @@ public class Vision extends SubsystemBase {
   }
 
   /**
+   * Returns true if at least one camera is connected (coprocessor + camera alive). False means
+   * vision is actually DOWN — as opposed to merely not seeing a tag at the moment.
+   */
+  public boolean isAnyCameraConnected() {
+    for (var cameraInputs : inputs) {
+      if (cameraInputs.connected) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Returns true when the pose estimate has been corrected by an accepted vision observation
    * recently. The shooter should gate automatic firing on this to avoid shooting on a stale pose.
    */

@@ -126,8 +126,15 @@ public final class Constants {
 
     // Aggregation motion speed — deliberately slower than normal positioning so the intake herds
     // balls instead of batting them away. PLACEHOLDER — tune against real ball behavior.
-    public static final double AGGREGATE_MAX_VELOCITY_METERS_PER_SEC = 0.15;
-    public static final double AGGREGATE_MAX_ACCELERATION_METERS_PER_SEC_SQ = 0.8;
+    // Raised 0.15 m/s / 0.8 m/s^2 -> 0.40 / 2.5 (2026-09-26): faster, more forceful herding strokes
+    public static final double AGGREGATE_MAX_VELOCITY_METERS_PER_SEC = 0.40;
+    public static final double AGGREGATE_MAX_ACCELERATION_METERS_PER_SEC_SQ = 2.5;
+    // Extra voltage added in the direction of travel during each herding stroke, so the slide
+    // shoves through balls instead of stalling when the PID error is small. PLACEHOLDER.
+    public static final double AGGREGATE_PUSH_VOLTS = 3.0;
+    // Each herding stroke reverses once it reaches its end OR after this long, whichever comes
+    // first — so balls blocking the slide can never stop the in/out pulse. PLACEHOLDER.
+    public static final double AGGREGATE_STROKE_TIMEOUT_SECS = 0.8;
 
     // Rollers — PLACEHOLDER starting values: tune the intake/eject speeds on the real mechanism
     // Raised 8 -> 10 V for faster intaking (2026-09-24); 12 V is the ceiling
@@ -183,6 +190,8 @@ public final class Constants {
 
     // Drum motor protection — PLACEHOLDER starting values
     public static final double DRUM_STATOR_CURRENT_LIMIT_AMPS = 60.0;
+    // Kept at 40 A (2026-09-26): spin-up and per-ball recovery matter for shot consistency, and the
+    // brownouts are being re-tested with a new battery first
     public static final double DRUM_SUPPLY_CURRENT_LIMIT_AMPS = 40.0;
 
     // Distance (meters, ROBOT CENTER -> hub center, from the pose) -> drum RPM interpolation map.
@@ -201,10 +210,10 @@ public final class Constants {
       {Units.inchesToMeters(80.0 + 18.25), 2690.0}, // 2.496 m, measured
       {Units.inchesToMeters(90.0 + 18.25), 2720.0}, // 2.750 m, measured
       {Units.inchesToMeters(100.0 + 18.25), 2760.0}, // 3.004 m, measured
-      {3.3, 2860.0}, // PREDICTED (~112 in from bumper)
-      {3.6, 2960.0}, // PREDICTED (~123 in from bumper)
-      {4.0, 3090.0}, // PREDICTED (~139 in from bumper)
-      {4.3, 3180.0}, // PREDICTED (~151 in from bumper)
+      {3.3, 2900.0}, // PREDICTED (~112 in from bumper)
+      {3.6, 2980.0}, // PREDICTED (~123 in from bumper)
+      {4.0, 3120.0}, // PREDICTED (~139 in from bumper)
+      {4.3, 3200.0}, // PREDICTED (~151 in from bumper)
     };
 
     // isReadyToShoot(): drum velocity must stay within this tolerance of the vision-mapped target
@@ -233,7 +242,7 @@ public final class Constants {
 
     // Neutral-zone funneling: fixed lob RPM toward the alliance corner (distance-to-corner varies
     // and precision doesn't matter — just get fuel back to friendly territory). PLACEHOLDER.
-    public static final double FUNNEL_RPM = 2300.0;
+    public static final double FUNNEL_RPM = 3000.0;
 
     // Idle spin: the drum is kept spinning at this low RPM whenever the robot is enabled and not
     // actively shooting, so spin-up to a shot RPM is a small step instead of from a dead stop.
@@ -252,8 +261,9 @@ public final class Constants {
     public static final double KICKER_FEED_VOLTS = 10.0; // Tune on real mechanism
     public static final double KICKER_REVERSE_VOLTS =
         -4.0; // Moderate reverse for unjam; PLACEHOLDER
-    // Raised 30 -> 40 so the NEO doesn't current-clip at the higher feed voltage
-    public static final int KICKER_CURRENT_LIMIT_AMPS = 40;
+    // Lowered 40 -> 30 A (2026-09-26) to reduce end-of-match brownouts. If the kicker stalls on
+    // balls (feed slows or stops mid-volley), raise it back toward 40.
+    public static final int KICKER_CURRENT_LIMIT_AMPS = 30;
 
     // Chute unjam: spin the drum FORWARD a little faster than idle to fling a ball stuck in the
     // chute clear (while the kicker/indexer back the jam out). PLACEHOLDER — a touch above idle.
@@ -309,7 +319,8 @@ public final class Constants {
     // Motor protection: strict stator limit so a jammed game piece cannot burn out the motor —
     // PLACEHOLDER starting values
     public static final double INDEXER_STATOR_CURRENT_LIMIT_AMPS = 40.0;
-    public static final double INDEXER_SUPPLY_CURRENT_LIMIT_AMPS = 30.0;
+    // Supply lowered 30 -> 25 A (2026-09-26) to reduce end-of-match brownouts
+    public static final double INDEXER_SUPPLY_CURRENT_LIMIT_AMPS = 25.0;
 
     // Belt speed — deliberately SLOWER than the kicker (see KICKER_FEED_VOLTS) so balls leave the
     // belt with a gap between them instead of entering the drum in a clump. Too slow starves the
