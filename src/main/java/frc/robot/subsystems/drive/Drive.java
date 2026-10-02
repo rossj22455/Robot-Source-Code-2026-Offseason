@@ -178,10 +178,10 @@ public class Drive extends SubsystemBase {
     PhoenixOdometryThread.getInstance().start();
 
     // PathPlanner mirrors blue paths onto the red side using the field size, which defaults to the
-    // stock 2026 field (16.54 m). The RoboCon field is shorter (~14.68 m), so without this every
-    // red
-    // pose lands ~1.86 m too far toward the red wall. Use the custom map's dimensions instead (the
-    // map is rotationally symmetric, matching PathPlanner's default flip).
+    // stock 2026 field (16.54 m). A modified field can differ (RoboCon was ~14.68 m, which put
+    // every
+    // red pose ~1.86 m too far toward the red wall), so always use the active layout's dimensions.
+    // REBUILT fields are rotationally symmetric, matching PathPlanner's default flip.
     FlippingUtil.fieldSizeX = VisionConstants.aprilTagLayout.getFieldLength();
     FlippingUtil.fieldSizeY = VisionConstants.aprilTagLayout.getFieldWidth();
 

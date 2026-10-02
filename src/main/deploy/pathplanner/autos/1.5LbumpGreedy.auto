@@ -7,7 +7,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "bumpR"
+            "pathName": " bumpLGreedy"
           }
         },
         {
@@ -19,7 +19,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "secondsweepR"
+            "pathName": "LEnd1.5"
           }
         },
         {

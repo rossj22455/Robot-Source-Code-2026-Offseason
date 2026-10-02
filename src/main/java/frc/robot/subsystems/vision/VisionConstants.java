@@ -29,13 +29,15 @@ import java.nio.file.Path;
  * the published AdvantageKit vision template defaults, to be tuned on the field.
  */
 public class VisionConstants {
-  // AprilTag layout. The competition uses a MODIFIED ("RoboCon") field, so tag poses are loaded
-  // from a custom layout placed in the deploy directory rather than the stock 2026 field. The SAME
-  // map must be uploaded to the PhotonVision coprocessor(s) separately (see the PhotonVision
-  // multitag docs) — the coprocessor uses it for multitag solves; this copy is used for single-tag
-  // solves and the field-boundary rejection in Vision. If the file is missing or unreadable it
-  // falls back to the stock 2026 field and raises an alert, so a missing map fails loudly instead
-  // of feeding silently-wrong poses to the estimator.
+  // AprilTag layout. Everything field-specific (hub centers below, field zones, field-bounds
+  // rejection, PathPlanner's red-alliance mirroring) is derived from this one layout, so switching
+  // fields is this single setting. The SAME layout must also be selected/uploaded in PhotonVision
+  // (it uses it for multitag solves).
+  //   false -> the stock 2026 REBUILT field (STOCK_FIELD below)
+  //   true  -> the custom layout file in src/main/deploy (the modified "RoboCon" field, 2026-09)
+  public static final boolean USE_CUSTOM_FIELD_LAYOUT = false;
+  // Stock field variant: k2026RebuiltWelded (default) or k2026RebuiltAndymark, per the event
+  public static final AprilTagFields STOCK_FIELD = AprilTagFields.k2026RebuiltWelded;
   public static final String CUSTOM_FIELD_FILENAME =
       "2026-robocon-welded-photonvision-wpilib-apriltag-map.json";
 
@@ -50,6 +52,9 @@ public class VisionConstants {
   public static AprilTagFieldLayout aprilTagLayout = loadAprilTagLayout();
 
   private static AprilTagFieldLayout loadAprilTagLayout() {
+    if (!USE_CUSTOM_FIELD_LAYOUT) {
+      return AprilTagFieldLayout.loadField(STOCK_FIELD);
+    }
     Path path = Filesystem.getDeployDirectory().toPath().resolve(CUSTOM_FIELD_FILENAME);
     if (Files.exists(path)) {
       try {
@@ -59,11 +64,9 @@ public class VisionConstants {
             "Failed to parse " + CUSTOM_FIELD_FILENAME + ": " + e.getMessage(), false);
       }
     }
-    // Missing or unparseable: fall back to the stock field and light the alert.
-    // Competition-day note: the stock default is k2026RebuiltWelded; if you ever run the real
-    // stock field on AndyMark tag mounts, that is k2026RebuiltAndymark.
+    // Missing or unparseable: fall back to the stock field and light the alert
     customFieldMissingAlert.set(true);
-    return AprilTagFieldLayout.loadField(AprilTagFields.kDefaultField);
+    return AprilTagFieldLayout.loadField(STOCK_FIELD);
   }
 
   /** How each camera is used. GAMEPIECE cameras never contribute to pose estimation. */
@@ -141,8 +144,8 @@ public class VisionConstants {
   public static double visionHeadingSeedMaxStdDev = 0.3;
 
   // How far outside the field boundary (meters) a vision pose may land and still be used. Keep
-  // small for matches (walls). For SHOP TESTING, where the robot can stand where the RoboCon
-  // field's walls would be (e.g. farther than ~4 m behind a hub), raise this (e.g. 3.0) or those
+  // small for matches (walls). For SHOP TESTING, where the robot can stand where the field's
+  // walls would be (e.g. farther than ~4 m behind a hub), raise this (e.g. 3.0) or those
   // readings are rejected as "outside field" and the heading never gets corrected.
   public static double fieldBoundsMarginMeters = 0.5;
 
@@ -158,26 +161,41 @@ public class VisionConstants {
   // Per-camera trust multipliers (>= 1 means less trusted) — PLACEHOLDER
   public static double[] cameraStdDevFactors = new double[] {1.0, 1.0, 1.0};
 
-  // Hub center positions for shooter distance/aim. Modified ("RoboCon") field, measured
-  // 2026-09-23 for the RED hub: 134 in (alliance wall -> front of hub) + 23.5 in (front -> center)
-  // = 157.5 in from its alliance wall down the field, and ~159 in from the side wall to the hub
-  // center (Y). The two hubs are 263 in apart (center to center). Placed in the blue-origin pose
-  // frame: the blue hub sits 157.5 in from the blue wall (symmetric with the measured red hub) and
-  // the red hub 263 in farther down-field. Anchored to the blue wall (X=0 in the pose frame) so it
-  // does NOT depend on the JSON's declared field length being exact.
-  // ASSUMES a symmetric field (blue hub also 157.5 in from its wall) with both hubs on the same Y.
-  // If blue's wall distance differs, set blueHubCenter's X directly; if RoboCon has a single shared
-  // hub, set redHubCenter = blueHubCenter.
-  private static final double HUB_CENTER_FROM_ALLIANCE_WALL_METERS =
-      Units.inchesToMeters(134.0 + 23.5); // 157.5 in
-  private static final double HUB_TO_HUB_METERS = Units.inchesToMeters(263.0);
-  private static final double HUB_CENTER_FROM_SIDE_WALL_METERS = Units.inchesToMeters(159.0);
+  // Hub center positions for shooter distance/aim, derived from the active layout: the middle of
+  // the tags mounted on each hub's faces. Works on any field that keeps the REBUILT hub tag IDs
+  // (on the RoboCon field this matched tape measurements within ~1 cm). Stock welded field: blue
+  // (4.6255, 4.0346), red (11.9155, 4.0346).
+  private static final int[] BLUE_HUB_TAG_IDS = {18, 19, 20, 21, 24, 25, 26, 27};
+  private static final int[] RED_HUB_TAG_IDS = {2, 3, 4, 5, 8, 9, 10, 11};
   public static Translation2d blueHubCenter =
-      new Translation2d(HUB_CENTER_FROM_ALLIANCE_WALL_METERS, HUB_CENTER_FROM_SIDE_WALL_METERS);
+      hubCenterFromTags(BLUE_HUB_TAG_IDS, new Translation2d(4.6255, 4.0346));
   public static Translation2d redHubCenter =
-      new Translation2d(
-          HUB_CENTER_FROM_ALLIANCE_WALL_METERS + HUB_TO_HUB_METERS,
-          HUB_CENTER_FROM_SIDE_WALL_METERS);
+      hubCenterFromTags(RED_HUB_TAG_IDS, new Translation2d(11.9155, 4.0346));
+
+  /** Center of the bounding box of a hub's face tags; the fallback if the layout lacks them. */
+  private static Translation2d hubCenterFromTags(int[] tagIds, Translation2d fallback) {
+    double minX = Double.POSITIVE_INFINITY;
+    double maxX = Double.NEGATIVE_INFINITY;
+    double minY = Double.POSITIVE_INFINITY;
+    double maxY = Double.NEGATIVE_INFINITY;
+    int found = 0;
+    for (int id : tagIds) {
+      var tagPose = aprilTagLayout.getTagPose(id);
+      if (tagPose.isPresent()) {
+        found++;
+        minX = Math.min(minX, tagPose.get().getX());
+        maxX = Math.max(maxX, tagPose.get().getX());
+        minY = Math.min(minY, tagPose.get().getY());
+        maxY = Math.max(maxY, tagPose.get().getY());
+      }
+    }
+    if (found < 4) {
+      DriverStation.reportWarning(
+          "Hub tags missing from the field layout; using default hub", false);
+      return fallback;
+    }
+    return new Translation2d((minX + maxX) / 2.0, (minY + maxY) / 2.0);
+  }
 
   // How recently a vision pose must have been accepted for the hub distance to be trusted
   // (seconds) — PLACEHOLDER

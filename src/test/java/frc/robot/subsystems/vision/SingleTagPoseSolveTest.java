@@ -11,10 +11,20 @@ import org.junit.jupiter.api.Test;
 /** Verifies the gyro-assisted single-tag solve against synthetic observations on the real map. */
 class SingleTagPoseSolveTest {
   @Test
-  void customFieldLayoutLoads() {
-    // The RoboCon map (not the stock field fallback) must be the one in use
+  void fieldLayoutLoads() {
+    // The active layout (stock or custom) must load with every REBUILT tag
     assertEquals(32, VisionConstants.aprilTagLayout.getTags().size());
     assertTrue(VisionConstants.aprilTagLayout.getTagPose(3).isPresent());
+  }
+
+  @Test
+  void hubCentersComeFromTheLayout() {
+    // Stock welded field: hubs 4.6255 / 11.9155 m down-field, both at Y 4.0346 m
+    if (!VisionConstants.USE_CUSTOM_FIELD_LAYOUT) {
+      assertEquals(4.6255, VisionConstants.blueHubCenter.getX(), 0.01);
+      assertEquals(11.9155, VisionConstants.redHubCenter.getX(), 0.01);
+      assertEquals(4.0346, VisionConstants.blueHubCenter.getY(), 0.01);
+    }
   }
 
   @Test

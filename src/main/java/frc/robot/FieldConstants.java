@@ -16,14 +16,14 @@ import frc.robot.util.Region2d;
 import java.util.Optional;
 
 /**
- * Field zones and targeting points for the 2026 REBUILT game on the RoboCon (modified) field.
- * Shooting at the hub from inside the neutral zone is illegal; there, fuel is funneled toward the
- * robot's own alliance corner instead (never across toward the opposing alliance).
+ * Field zones and targeting points for the 2026 REBUILT game (stock or modified field). Shooting at
+ * the hub from inside the neutral zone is illegal; there, fuel is funneled toward the robot's own
+ * alliance corner instead (never across toward the opposing alliance).
  */
 public class FieldConstants {
-  // RoboCon (modified) field geometry, derived from the same sources vision uses so the zones
-  // always agree with the pose frame: field size from the custom AprilTag map, hub centers from the
-  // tape-measured VisionConstants values. Blue-origin frame (X along the field, Y across).
+  // Field geometry, derived from the same sources vision uses so the zones always agree with the
+  // pose frame: field size from the active AprilTag layout, hub centers from its hub tags (see
+  // VisionConstants.USE_CUSTOM_FIELD_LAYOUT). Blue-origin frame (X along the field, Y across).
   private static final double FIELD_LENGTH_METERS = VisionConstants.aprilTagLayout.getFieldLength();
   private static final double FIELD_WIDTH_METERS = VisionConstants.aprilTagLayout.getFieldWidth();
   // Hub footprint is 47 in square, so each face sits 23.5 in from the hub center
