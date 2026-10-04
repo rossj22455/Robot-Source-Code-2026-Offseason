@@ -74,7 +74,9 @@ public class TunerConstants {
                   // Lowered 50 -> 40 A (2026-09-26) to curb brownouts; top speed unaffected
                   .withSupplyCurrentLimit(Amps.of(40))
                   .withStatorCurrentLimitEnable(true)
-                  .withSupplyCurrentLimitEnable(true));
+                  .withSupplyCurrentLimitEnable(true))
+
+        .withClosedLoopRamps(new ClosedLoopRampsConfigs().withVoltageClosedLoopRampPeriod(0.01));
   private static final TalonFXConfiguration steerInitialConfigs =
       new TalonFXConfiguration()
           .withCurrentLimits(
