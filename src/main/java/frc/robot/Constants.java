@@ -121,7 +121,7 @@ public final class Constants {
     // positions (in to SHUTTER_IN, back out to SHUTTER_OUT, repeat) with the rollers turning gently
     // inward (ROLLER_RETRACT_VOLTS), herding balls toward the indexer without ever coming all the
     // way home. Positions are meters of slide travel (0 = retracted, ~0.316 = fully extended).
-    public static final double SHUTTER_IN_POSITION_METERS = 0.20;
+    public static final double SHUTTER_IN_POSITION_METERS = 0.0;
     public static final double SHUTTER_OUT_POSITION_METERS = LINEAR_EXTENDED_POSITION_METERS;
 
     // Aggregation motion speed — deliberately slower than normal positioning so the intake herds

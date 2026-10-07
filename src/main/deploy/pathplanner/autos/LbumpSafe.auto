@@ -21,6 +21,12 @@
           "data": {
             "pathName": "secondsweepL"
           }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "Shoot"
+          }
         }
       ]
     }

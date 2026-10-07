@@ -16,16 +16,16 @@
     },
     {
       "anchor": {
-        "x": 7.5066191155492135,
-        "y": 6.823281027104137
+        "x": 7.841013513513513,
+        "y": 6.823412162162162
       },
       "prevControl": {
-        "x": 7.2198999194768865,
-        "y": 7.041143551880953
+        "x": 7.082513767333669,
+        "y": 7.375097351274242
       },
       "nextControl": {
-        "x": 7.782371921346828,
-        "y": 6.61375127357412
+        "x": 8.121091972733021,
+        "y": 6.619700640149209
       },
       "isLocked": false,
       "linkedName": null
@@ -79,15 +79,15 @@
   "rotationTargets": [
     {
       "waypointRelativePos": 1,
-      "rotationDegrees": 108.88608736970943
+      "rotationDegrees": 97.94719985050405
     },
     {
       "waypointRelativePos": 1.4905660377358492,
-      "rotationDegrees": 99.7114099754508
+      "rotationDegrees": 89.03401474643245
     },
     {
       "waypointRelativePos": 2.0213219616204805,
-      "rotationDegrees": 91.52190931562268
+      "rotationDegrees": 84.01643055373496
     },
     {
       "waypointRelativePos": 3.181236673773988,
@@ -101,8 +101,8 @@
   "constraintZones": [
     {
       "name": "Intake",
-      "minWaypointRelativePos": 0.8750844024308058,
-      "maxWaypointRelativePos": 2.2114143920595324,
+      "minWaypointRelativePos": 0.9551166965888697,
+      "maxWaypointRelativePos": 2.21,
       "constraints": {
         "maxVelocity": 1.5,
         "maxAcceleration": 2.0,
@@ -126,13 +126,13 @@
       }
     },
     {
-      "name": "Get TO it",
+      "name": "Constraints Zone",
       "minWaypointRelativePos": 0,
-      "maxWaypointRelativePos": 1.1235651586765618,
+      "maxWaypointRelativePos": 0.9694793536804313,
       "constraints": {
-        "maxVelocity": 3.5,
-        "maxAcceleration": 3.75,
-        "maxAngularVelocity": 560.0,
+        "maxVelocity": 5.5,
+        "maxAcceleration": 10.0,
+        "maxAngularVelocity": 600.0,
         "maxAngularAcceleration": 720.0,
         "nominalVoltage": 12.0,
         "unlimited": false
@@ -143,7 +143,7 @@
   "eventMarkers": [
     {
       "name": "IntakeRun",
-      "waypointRelativePos": 0.3349088453747416,
+      "waypointRelativePos": 0.057450628366247806,
       "endWaypointRelativePos": 2.7765023632680497,
       "command": {
         "type": "named",
@@ -154,7 +154,7 @@
     },
     {
       "name": "SpinUp",
-      "waypointRelativePos": 3.338284942606348,
+      "waypointRelativePos": 3.0736086175942576,
       "endWaypointRelativePos": null,
       "command": {
         "type": "named",
@@ -165,9 +165,9 @@
     }
   ],
   "globalConstraints": {
-    "maxVelocity": 3.5,
-    "maxAcceleration": 2.75,
-    "maxAngularVelocity": 560.0,
+    "maxVelocity": 3.0,
+    "maxAcceleration": 7.25,
+    "maxAngularVelocity": 600.0,
     "maxAngularAcceleration": 720.0,
     "nominalVoltage": 12.0,
     "unlimited": false
@@ -177,7 +177,7 @@
     "rotation": -39.24859790963399
   },
   "reversed": false,
-  "folder": "bump",
+  "folder": null,
   "idealStartingState": {
     "velocity": 0,
     "rotation": 90.0
