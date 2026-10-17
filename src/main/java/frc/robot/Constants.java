@@ -117,24 +117,10 @@ public final class Constants {
     // Thermal monitoring — PLACEHOLDER warning threshold
     public static final double MOTOR_TEMP_WARNING_CELSIUS = 80.0;
 
-    // Firing aggregation ("shutter"): while shooting, the intake pulses between these two
-    // positions (in to SHUTTER_IN, back out to SHUTTER_OUT, repeat) with the rollers turning gently
-    // inward (ROLLER_RETRACT_VOLTS), herding balls toward the indexer without ever coming all the
-    // way home. Positions are meters of slide travel (0 = retracted, ~0.316 = fully extended).
+    // Firing aggregation ("shutter"): while shooting, the intake drives all the way in on the fast
+    // profile with the rollers turning gently inward (ROLLER_RETRACT_VOLTS), herding the remaining
+    // balls toward the indexer. Position is meters of slide travel (0 = fully retracted / home).
     public static final double SHUTTER_IN_POSITION_METERS = 0.0;
-    public static final double SHUTTER_OUT_POSITION_METERS = LINEAR_EXTENDED_POSITION_METERS;
-
-    // Aggregation motion speed — deliberately slower than normal positioning so the intake herds
-    // balls instead of batting them away. PLACEHOLDER — tune against real ball behavior.
-    // Raised 0.15 m/s / 0.8 m/s^2 -> 0.40 / 2.5 (2026-09-26): faster, more forceful herding strokes
-    public static final double AGGREGATE_MAX_VELOCITY_METERS_PER_SEC = 0.40;
-    public static final double AGGREGATE_MAX_ACCELERATION_METERS_PER_SEC_SQ = 2.5;
-    // Extra voltage added in the direction of travel during each herding stroke, so the slide
-    // shoves through balls instead of stalling when the PID error is small. PLACEHOLDER.
-    public static final double AGGREGATE_PUSH_VOLTS = 3.0;
-    // Each herding stroke reverses once it reaches its end OR after this long, whichever comes
-    // first — so balls blocking the slide can never stop the in/out pulse. PLACEHOLDER.
-    public static final double AGGREGATE_STROKE_TIMEOUT_SECS = 0.8;
 
     // Rollers — PLACEHOLDER starting values: tune the intake/eject speeds on the real mechanism
     // Raised 8 -> 10 V for faster intaking (2026-09-24); 12 V is the ceiling
@@ -273,9 +259,6 @@ public final class Constants {
     public static final double MOTOR_TEMP_WARNING_CELSIUS = 80.0;
 
     // Firing-sequence orchestration (used by RobotContainer's aim-and-shoot):
-    // How long R2 is held (from press) before the intake stops collecting and sweeps in to herd
-    // the remaining balls. PLACEHOLDER — tune to how long a volley takes to clear staged balls.
-    public static final double SHOOT_HERD_DELAY_SECS = 2.0;
     // How long the autonomous "Shoot" named command aims + fires before ending (no ball sensor, so
     // it's time-based). Set to how long a full load takes to clear. PLACEHOLDER.
     public static final double AUTO_SHOOT_TIMEOUT_SECS = 4.0;

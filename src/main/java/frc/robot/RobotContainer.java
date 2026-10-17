@@ -15,7 +15,6 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.GenericHID;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -92,10 +91,6 @@ public class RobotContainer {
 
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
-
-  // Elapsed-time tracker for the firing sequence: delays the intake herd-home so the intake keeps
-  // collecting for a moment before it sweeps balls in (see shootCommand)
-  private final Timer shootTimer = new Timer();
 
   // TESTING: drum RPM for the dashboard "Test Shot (No Aim)" button (editable on the dashboard)
   private final LoggedNetworkNumber testShotRpm =
@@ -516,23 +511,20 @@ public class RobotContainer {
               shooter.startSpinUp();
               shooter.runKickerFeed(); // No-op until isReadyToShoot()
               indexer.feed(); // Blocked by the interlock until isReadyToShoot()
-              // Keep collecting at first; only after the delay does the intake sweep in and rock
-              // to herd the remaining balls inward (idempotent — safe to call every loop)
-              if (shootTimer.hasElapsed(Constants.Shooter.SHOOT_HERD_DELAY_SECS)) {
-                intake.startAggregating();
-              }
+              // As soon as the shot begins, sweep the intake all the way in to herd the remaining
+              // balls toward the indexer (idempotent — safe to call every loop)
+              intake.startAggregating();
             },
             () -> {
               shooter.stopShooter(); // Drum drops to idle spin, not a dead stop
               shooter.stopKicker();
               indexer.stop();
-              // Ends the pulse and returns the intake to wherever it was before the shot
+              // Ends the sweep and returns the intake to wherever it was before the shot
               intake.stopAggregating();
             },
             shooter,
             indexer,
             intake)
-        .beforeStarting(shootTimer::restart)
         .withName("Shoot");
   }
 

@@ -60,8 +60,6 @@ public class Intake extends SubsystemBase {
               LINEAR_MAX_VELOCITY_METERS_PER_SEC, LINEAR_MAX_ACCELERATION_METERS_PER_SEC_SQ));
   private final Debouncer stallDebouncer = new Debouncer(HOMING_STALL_DEBOUNCE_SECS);
   private final Timer homingTimer = new Timer();
-  // Times each herding stroke so a blocked stroke still reverses (AGGREGATE_STROKE_TIMEOUT_SECS)
-  private final Timer strokeTimer = new Timer();
 
   // Starts RUNNING: the intake is assumed to be powered on all the way in (encoder = 0)
   private LinearState linearState = LinearState.RUNNING;
@@ -78,21 +76,17 @@ public class Intake extends SubsystemBase {
   // aborted re-home leaves an already-homed slide homed instead of dropping it to UNHOMED
   private LinearState stateBeforeHoming = LinearState.RUNNING;
 
-  // Firing aggregation: pulse slowly between SHUTTER_IN and SHUTTER_OUT with the rollers turning
-  // gently inward to herd balls; the pre-aggregation posture is restored afterward
+  // Firing aggregation: drive all the way in on the fast profile with the rollers turning gently
+  // inward to herd balls; the pre-aggregation posture is restored afterward
   private static final TrapezoidProfile.Constraints NORMAL_CONSTRAINTS =
       new TrapezoidProfile.Constraints(
           LINEAR_MAX_VELOCITY_METERS_PER_SEC, LINEAR_MAX_ACCELERATION_METERS_PER_SEC_SQ);
-  private static final TrapezoidProfile.Constraints AGGREGATE_CONSTRAINTS =
-      new TrapezoidProfile.Constraints(
-          AGGREGATE_MAX_VELOCITY_METERS_PER_SEC, AGGREGATE_MAX_ACCELERATION_METERS_PER_SEC_SQ);
-  // Aggressive profile for the emergency force-retract button
+  // Aggressive profile, shared by the firing sweep and the emergency force-retract button
   private static final TrapezoidProfile.Constraints FAST_CONSTRAINTS =
       new TrapezoidProfile.Constraints(
           FAST_RETRACT_MAX_VELOCITY_METERS_PER_SEC,
           FAST_RETRACT_MAX_ACCELERATION_METERS_PER_SEC_SQ);
   private boolean aggregating = false;
-  private boolean shutterOut = false;
   private double preAggregationGoalMeters = LINEAR_RETRACTED_POSITION_METERS;
 
   private final Alert notHomedAlert =
@@ -204,21 +198,7 @@ public class Intake extends SubsystemBase {
           linearController.reset(linearInputs.positionMeters);
           linearIO.setVoltage(0.0);
         } else {
-          // Firing aggregation: reverse direction (shutter) once the stroke reaches its end, or
-          // after the stroke timeout if balls are blocking it, so the pulse never stalls
-          if (aggregating
-              && (linearController.atGoal()
-                  || strokeTimer.hasElapsed(AGGREGATE_STROKE_TIMEOUT_SECS))) {
-            shutterOut = !shutterOut;
-            setGoalMeters(shutterOut ? SHUTTER_OUT_POSITION_METERS : SHUTTER_IN_POSITION_METERS);
-            strokeTimer.restart();
-          }
           double outputVolts = linearController.calculate(linearInputs.positionMeters, goalMeters);
-          // Herding push: extra voltage toward the stroke's end so the slide drives through balls
-          double strokeError = goalMeters - linearInputs.positionMeters;
-          if (aggregating && Math.abs(strokeError) > LINEAR_POSITION_TOLERANCE_METERS) {
-            outputVolts += Math.copySign(AGGREGATE_PUSH_VOLTS, strokeError);
-          }
           linearIO.setVoltage(MathUtil.clamp(outputVolts, -12.0, 12.0));
         }
       }
@@ -321,18 +301,17 @@ public class Intake extends SubsystemBase {
   }
 
   /**
-   * Begins the firing aggregation pulse: the intake slowly comes in to SHUTTER_IN, back out to
-   * SHUTTER_OUT, and repeats until {@link #stopAggregating()}, with the rollers turning gently
-   * inward the whole time. Idempotent — safe to call every loop from a running command.
+   * Begins the firing aggregation sweep: the intake drives all the way in to SHUTTER_IN on the fast
+   * profile and holds there until {@link #stopAggregating()}, with the rollers turning gently
+   * inward to herd the remaining balls toward the indexer. Idempotent — safe to call every loop
+   * from a running command.
    */
   public void startAggregating() {
     if (!aggregating) {
       aggregating = true;
-      shutterOut = false;
       preAggregationGoalMeters = goalMeters;
-      linearController.setConstraints(AGGREGATE_CONSTRAINTS);
+      linearController.setConstraints(FAST_CONSTRAINTS);
       setGoalMeters(SHUTTER_IN_POSITION_METERS);
-      strokeTimer.restart();
       runRollers(ROLLER_RETRACT_VOLTS);
     }
   }

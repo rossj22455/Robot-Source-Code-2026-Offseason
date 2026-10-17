@@ -48,19 +48,100 @@
     },
     {
       "anchor": {
-        "x": 7.064752252252252,
-        "y": 3.2383108108108116
+        "x": 6.288490990990991,
+        "y": 3.5549436936936942
       },
       "prevControl": {
-        "x": 7.260539467007912,
-        "y": 3.452127548934608
+        "x": 6.574481981981982,
+        "y": 3.902218468468469
+      },
+      "nextControl": {
+        "x": 5.589163691114141,
+        "y": 2.705760543843236
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 7.585664414414415,
+        "y": 1.9819932432432439
+      },
+      "prevControl": {
+        "x": 8.27,
+        "y": 3.0136036036036034
+      },
+      "nextControl": {
+        "x": 6.52764851453039,
+        "y": 0.38707375237329344
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 5.79822072072072,
+        "y": 2.2373423423423424
+      },
+      "prevControl": {
+        "x": 6.363730805513709,
+        "y": 2.149143521778298
+      },
+      "nextControl": {
+        "x": 4.684898648648649,
+        "y": 2.41097972972973
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 2.732253922967189,
+        "y": 2.747603423680457
+      },
+      "prevControl": {
+        "x": 3.9699211711711717,
+        "y": 1.9513513513513523
       },
       "nextControl": null,
       "isLocked": false,
-      "linkedName": null
+      "linkedName": "FireR"
     }
   ],
-  "rotationTargets": [],
+  "rotationTargets": [
+    {
+      "waypointRelativePos": 2.509433962264151,
+      "rotationDegrees": 5.515869416997649
+    },
+    {
+      "waypointRelativePos": 3.2735849056603743,
+      "rotationDegrees": 136.20504763165124
+    },
+    {
+      "waypointRelativePos": 3.6603773584905817,
+      "rotationDegrees": 154.46958947526252
+    },
+    {
+      "waypointRelativePos": 3.9245283018867942,
+      "rotationDegrees": 77.85034744996501
+    },
+    {
+      "waypointRelativePos": 4.169811320754709,
+      "rotationDegrees": -5.654612371660502
+    },
+    {
+      "waypointRelativePos": 4.594339622641507,
+      "rotationDegrees": -54.82918141860013
+    },
+    {
+      "waypointRelativePos": 5.047169811320757,
+      "rotationDegrees": -64.0
+    },
+    {
+      "waypointRelativePos": 5.783018867924566,
+      "rotationDegrees": -64.0
+    }
+  ],
   "constraintZones": [
     {
       "name": "Constraints Zone",
@@ -74,10 +155,54 @@
         "nominalVoltage": 12.0,
         "unlimited": false
       }
+    },
+    {
+      "name": "Constraints Zone",
+      "minWaypointRelativePos": 2.5098743267504604,
+      "maxWaypointRelativePos": 4.750448833034112,
+      "constraints": {
+        "maxVelocity": 1.5,
+        "maxAcceleration": 7.25,
+        "maxAngularVelocity": 600.0,
+        "maxAngularAcceleration": 720.0,
+        "nominalVoltage": 12.0,
+        "unlimited": false
+      }
+    },
+    {
+      "name": "Constraints Zone",
+      "minWaypointRelativePos": 4.8043087971274705,
+      "maxWaypointRelativePos": 6.0,
+      "constraints": {
+        "maxVelocity": 3.0,
+        "maxAcceleration": 10.0,
+        "maxAngularVelocity": 600.0,
+        "maxAngularAcceleration": 720.0,
+        "nominalVoltage": 12.0,
+        "unlimited": false
+      }
     }
   ],
   "pointTowardsZones": [],
-  "eventMarkers": [],
+  "eventMarkers": [
+    {
+      "name": "IntakeRun",
+      "waypointRelativePos": 2.3590664272890502,
+      "endWaypointRelativePos": 4.804308797127455,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "IntakeRun"
+        }
+      }
+    },
+    {
+      "name": "SpinUp",
+      "waypointRelativePos": 5.385996409335725,
+      "endWaypointRelativePos": null,
+      "command": null
+    }
+  ],
   "globalConstraints": {
     "maxVelocity": 3.0,
     "maxAcceleration": 7.25,
@@ -88,7 +213,7 @@
   },
   "goalEndState": {
     "velocity": 0,
-    "rotation": 0.0
+    "rotation": 34.592288687509935
   },
   "reversed": false,
   "folder": "supsecret",

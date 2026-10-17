@@ -12,7 +12,9 @@
       "PowerShell($env:JAVA_HOME = \"C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk\"; ./gradlew compileJava -q 2>&1 | Select-Object -Last 40)",
       "PowerShell($env:JAVA_HOME = \"C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk\"; ./gradlew compileJava 2>&1 | Select-String -Pattern \"BUILD SUCCESSFUL|BUILD FAILED|error:\")",
       "PowerShell($env:JAVA_HOME = \"C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk\"; ./gradlew compileJava compileTestJava 2>&1 | Select-String -Pattern \"BUILD SUCCESSFUL|BUILD FAILED|error:|cannot find symbol|Constants\")",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(export JAVA_HOME=\"C:/Users/Public/wpilib/2026/jdk\")",
+      "Bash(./gradlew compileJava -q)"
     ]
   }
 }
