@@ -36,7 +36,7 @@ public class IntakeRollerIOSparkMax implements IntakeRollerIO {
     var masterConfig = new SparkMaxConfig();
     masterConfig
         .idleMode(IdleMode.kCoast)
-        .inverted(true)
+        .inverted(false)
         .smartCurrentLimit(ROLLER_CURRENT_LIMIT_AMPS)
         .voltageCompensation(12.0);
     master.configure(masterConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);

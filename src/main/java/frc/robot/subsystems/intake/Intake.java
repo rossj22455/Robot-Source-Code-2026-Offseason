@@ -121,7 +121,7 @@ public class Intake extends SubsystemBase {
 
     // Health monitoring
     linearDisconnectedAlert.set(!linearInputs.connected);
-    rollerDisconnectedAlert.set(!rollerInputs.connected);
+    rollerDisconnectedAlert.set(ROLLERS_INSTALLED && !rollerInputs.connected);
     linearTempAlert.set(linearInputs.tempCelsius > MOTOR_TEMP_WARNING_CELSIUS);
     rollerTempAlert.set(
         Math.max(rollerInputs.masterTempCelsius, rollerInputs.followerTempCelsius)

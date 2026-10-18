@@ -116,8 +116,14 @@ public class RobotContainer {
                 drive::sampleHeadingAt,
                 new VisionIOPhotonVision(camera0Name, robotToCamera0, cameraRoles[0]));
 
-        // Rollers: single NEO on ID 35 for now (see Constants.Intake.ROLLER_FOLLOWER_INSTALLED)
-        intake = new Intake(new IntakeLinearIOSparkMax(), new IntakeRollerIOSparkMax());
+        // Rollers: master NEO ID 37 + inverted follower ID 35 (see Constants.Intake). When the
+        // rollers are out of service, use a no-op IO so neither SparkMax is ever opened on CAN.
+        intake =
+            new Intake(
+                new IntakeLinearIOSparkMax(),
+                Constants.Intake.ROLLERS_INSTALLED
+                    ? new IntakeRollerIOSparkMax()
+                    : new IntakeRollerIO() {});
         shooter =
             new Shooter(
                 new ShooterDrumIOTalonFX(),

@@ -43,11 +43,16 @@ public final class Constants {
   public static final class Intake {
     // CAN IDs — PLACEHOLDER assignments, but note the legal FRC CAN device ID range is 0-62
     public static final int LINEAR_MOTOR_ID = 33;
-    public static final int ROLLER_MASTER_ID = 35;
-    public static final int ROLLER_FOLLOWER_ID = 37;
-    // Second roller NEO (ID 37) is mounted: runs as an inverted hardware follower of the master.
+    public static final int ROLLER_MASTER_ID = 37;
+    public static final int ROLLER_FOLLOWER_ID = 35;
+    // Master is ID 37 (not inverted); ID 35 runs as an inverted hardware follower of it, so
+    // positive volts = intake. To reverse both rollers, flip the master's .inverted() only.
     // Set false to run on the master alone (no controller is created for the follower then).
     public static final boolean ROLLER_FOLLOWER_INSTALLED = true;
+    // Set false when the roller bar is out of service: no SparkMax is created for either roller ID
+    // (nothing on the CAN bus is polled for them) and roller commands become no-ops. The slide
+    // still works normally.
+    public static final boolean ROLLERS_INSTALLED = false;
 
     // The slide motor's raw direction is negative = extend (measured: fully extended read about
     // -0.280 m). Inverting it makes positive = extend everywhere in code, matching the setpoints.
